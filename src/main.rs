@@ -3,6 +3,7 @@ use std::io;
 use std::io::Read;
 
 mod day1;
+mod day2;
 
 fn main() {
     let args: Vec<_> = std::env::args().collect();
@@ -21,6 +22,7 @@ fn run(day: i32) {
     match read_file(&filename) {
         Ok(data) => match day {
             1 => day1::run(&data),
+            2 => day2::run(&data),
             _ => eprintln!("Day {} not implemented", day),
         },
         Err(e) => eprintln!("{}: {}", filename, e),
