@@ -11,7 +11,7 @@ fn parse_input(input: &str) -> Vec<i32> {
         .collect()
 }
 
-fn count_increases(input: &Vec<i32>) -> i32 {
+fn count_increases(input: &[i32]) -> i32 {
     let mut count = 0;
     for i in 1..input.len() {
         if input[i] > input[i - 1] {
@@ -21,7 +21,7 @@ fn count_increases(input: &Vec<i32>) -> i32 {
     count
 }
 
-fn count_sliding_increases(input: &Vec<i32>) -> i32 {
+fn count_sliding_increases(input: &[i32]) -> i32 {
     let mut count = 0;
     let mut sum = input[0] + input[1] + input[2]; // first window
     for i in 1..input.len() - 2 {

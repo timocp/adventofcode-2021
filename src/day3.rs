@@ -1,5 +1,5 @@
 pub fn run(input: &str) {
-    let input = parse_input(&input);
+    let input = parse_input(input);
     let (gamma, epsilon) = calc_power_consumption(&input);
     println!("Day 3, part one: {}", gamma * epsilon);
     println!(
@@ -8,37 +8,40 @@ pub fn run(input: &str) {
     );
 }
 
-fn calc_power_consumption(input: &Vec<usize>) -> (usize, usize) {
+fn calc_power_consumption(input: &[usize]) -> (usize, usize) {
     let mut gamma = 0;
     let mut epsilon = 0;
     let half = input.len() / 2;
     for n in 0..=15 {
-        let count = input.iter().filter(|&row| row & (1 << 15 - n) > 0).count();
+        let count = input
+            .iter()
+            .filter(|&row| row & (1 << (15 - n)) > 0)
+            .count();
         if count > 0 {
             if count > half {
-                gamma += 1 << 15 - n;
+                gamma += 1 << (15 - n);
             } else {
-                epsilon += 1 << 15 - n;
+                epsilon += 1 << (15 - n);
             }
         }
     }
     (gamma, epsilon)
 }
 
-fn calc_oxygen_generator_rating(input: &Vec<usize>) -> usize {
-    let mut list = input.clone();
+fn calc_oxygen_generator_rating(input: &[usize]) -> usize {
+    let mut list = input.to_owned();
     for n in 0..=15 {
-        let count = list.iter().filter(|&row| row & (1 << 15 - n) > 0).count();
+        let count = list.iter().filter(|&row| row & (1 << (15 - n)) > 0).count();
         if count > 0 {
             if count * 2 >= list.len() {
                 list = list
                     .into_iter()
-                    .filter(|&row| row & (1 << 15 - n) > 0)
+                    .filter(|&row| row & (1 << (15 - n)) > 0)
                     .collect::<Vec<usize>>();
             } else {
                 list = list
                     .into_iter()
-                    .filter(|&row| row & (1 << 15 - n) == 0)
+                    .filter(|&row| row & (1 << (15 - n)) == 0)
                     .collect::<Vec<usize>>();
             }
             if list.len() == 1 {
@@ -49,20 +52,20 @@ fn calc_oxygen_generator_rating(input: &Vec<usize>) -> usize {
     0
 }
 
-fn calc_co2_scrubber_rating(input: &Vec<usize>) -> usize {
-    let mut list = input.clone();
+fn calc_co2_scrubber_rating(input: &[usize]) -> usize {
+    let mut list = input.to_owned();
     for n in 0..=15 {
-        let count = list.iter().filter(|&row| row & (1 << 15 - n) > 0).count();
+        let count = list.iter().filter(|&row| row & (1 << (15 - n)) > 0).count();
         if count > 0 {
             if count * 2 >= list.len() {
                 list = list
                     .into_iter()
-                    .filter(|&row| row & (1 << 15 - n) == 0)
+                    .filter(|&row| row & (1 << (15 - n)) == 0)
                     .collect::<Vec<usize>>();
             } else {
                 list = list
                     .into_iter()
-                    .filter(|&row| row & (1 << 15 - n) > 0)
+                    .filter(|&row| row & (1 << (15 - n)) > 0)
                     .collect::<Vec<usize>>();
             }
             if list.len() == 1 {

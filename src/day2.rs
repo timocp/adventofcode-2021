@@ -1,5 +1,5 @@
 pub fn run(input: &str) {
-    let commands = parse_input(&input);
+    let commands = parse_input(input);
 
     let mut sub = Sub::new();
     sub.follow(&commands);
@@ -38,7 +38,7 @@ impl Sub {
         }
     }
 
-    fn follow(&mut self, commands: &Vec<Command>) {
+    fn follow(&mut self, commands: &[Command]) {
         for command in commands {
             match &command.dir {
                 Direction::Forward => self.hpos += command.units,
@@ -48,7 +48,7 @@ impl Sub {
         }
     }
 
-    fn follow2(&mut self, commands: &Vec<Command>) {
+    fn follow2(&mut self, commands: &[Command]) {
         for command in commands {
             match &command.dir {
                 Direction::Forward => {
@@ -69,23 +69,23 @@ impl Sub {
 fn parse_input(input: &str) -> Vec<Command> {
     let mut commands = vec![];
     for line in input.lines() {
-        let words: Vec<&str> = line.split(" ").collect();
+        let words: Vec<&str> = line.split(' ').collect();
         match words[1].parse() {
             Ok(units) => {
                 if line.starts_with("forward") {
                     commands.push(Command {
                         dir: Direction::Forward,
-                        units: units,
+                        units,
                     })
                 } else if line.starts_with("down") {
                     commands.push(Command {
                         dir: Direction::Down,
-                        units: units,
+                        units,
                     })
                 } else if line.starts_with("up") {
                     commands.push(Command {
                         dir: Direction::Up,
-                        units: units,
+                        units,
                     })
                 } else {
                     eprintln!("parse error: invalid direction: {}", line)
