@@ -1,12 +1,29 @@
+use std::fmt;
+
 pub fn run(input: &str) {
     let (numbers, boards) = parse_input(input);
-    println!("Day 4, part one: {}", play(numbers, boards).score());
+    println!("Day 4, part one: {}", play_to_win(numbers, boards).score());
+    let (numbers, boards) = parse_input(input);
+    println!("Day 4, part two: {}", play_to_lose(numbers, boards).score());
 }
 
-#[derive(Debug)]
 struct Board {
     grid: [[usize; 5]; 5],
     mark: [[bool; 5]; 5],
+    done: bool,
+}
+
+impl fmt::Debug for Board {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut s = String::new();
+        for y in 0..5 {
+            s += &self.grid[y].map(|v| format!("{:2}", v)).join(" ");
+            s += "  ";
+            s += &self.mark[y].map(|v| if v { "#" } else { "." }).join("");
+            s += "\n";
+        }
+        write!(f, "{}", s)
+    }
 }
 
 impl Board {
@@ -20,18 +37,26 @@ impl Board {
         Board {
             grid,
             mark: [[false; 5]; 5],
+            done: false,
         }
     }
 
-    fn mark(&mut self, number: usize) {
+    // returns true if this caused bingo
+    fn mark(&mut self, number: usize) -> bool {
         for y in 0..5 {
             for x in 0..5 {
                 if self.grid[y][x] == number {
                     self.mark[y][x] = true;
-                    return;
+                    if self.mark[y].iter().all(|v| *v) || self.mark.iter().all(|row| row[x]) {
+                        self.done = true;
+                        return true;
+                    } else {
+                        return false;
+                    }
                 }
             }
         }
+        false
     }
 
     fn sum_unmarked_numbers(&self) -> usize {
@@ -44,20 +69,6 @@ impl Board {
             }
         }
         sum
-    }
-
-    fn bingo(&self) -> bool {
-        for y in 0..5 {
-            if self.mark[y].iter().all(|v| *v) {
-                return true;
-            }
-        }
-        for x in 0..5 {
-            if self.mark.iter().all(|row| row[x]) {
-                return true;
-            }
-        }
-        false
     }
 }
 
@@ -74,11 +85,10 @@ impl GameResult {
 }
 
 // plays bingo. takes ownership of params and wrecks them as a side effect
-fn play(numbers: Vec<usize>, mut boards: Vec<Board>) -> GameResult {
+fn play_to_win(numbers: Vec<usize>, mut boards: Vec<Board>) -> GameResult {
     for number in numbers {
         for board in &mut boards {
-            board.mark(number);
-            if board.bingo() {
+            if board.mark(number) {
                 return GameResult {
                     sum_of_unmarked_numbers: board.sum_unmarked_numbers(),
                     last_number_called: number,
@@ -87,6 +97,24 @@ fn play(numbers: Vec<usize>, mut boards: Vec<Board>) -> GameResult {
         }
     }
     panic!("No winning board");
+}
+
+fn play_to_lose(numbers: Vec<usize>, mut boards: Vec<Board>) -> GameResult {
+    let mut boards_in_play = boards.len();
+    for number in numbers {
+        for board in &mut boards {
+            if !board.done && board.mark(number) {
+                boards_in_play -= 1;
+                if boards_in_play == 0 {
+                    return GameResult {
+                        sum_of_unmarked_numbers: board.sum_unmarked_numbers(),
+                        last_number_called: number,
+                    };
+                }
+            }
+        }
+    }
+    panic!("Final board didn't win");
 }
 
 fn parse_input(input: &str) -> (Vec<usize>, Vec<Board>) {
@@ -145,8 +173,14 @@ fn test_bingo() {
     assert_eq!(22, boards[0].grid[0][0]);
     assert_eq!(7, boards[2].grid[4][4]);
 
-    let result = play(numbers, boards);
+    let result = play_to_win(numbers, boards);
     assert_eq!(188, result.sum_of_unmarked_numbers);
     assert_eq!(24, result.last_number_called);
     assert_eq!(4512, result.score());
+
+    let (numbers, boards) = parse_input(test_input);
+    let result = play_to_lose(numbers, boards);
+    assert_eq!(148, result.sum_of_unmarked_numbers);
+    assert_eq!(13, result.last_number_called);
+    assert_eq!(1924, result.score());
 }
