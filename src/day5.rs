@@ -1,18 +1,20 @@
+use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::fmt;
 
 pub fn run(input: &str) {
-    let grid = parse_input(input);
+    let lines = parse_input(input);
     println!(
         "Day 5, part one: {}",
-        grid.count_overlapping_points(CountFlag::WithoutDiagonals)
+        count_overlapping_points(&lines, CountFlag::WithoutDiagonals)
     );
     println!(
         "Day 5, part two: {}",
-        grid.count_overlapping_points(CountFlag::WithDiagonals)
+        count_overlapping_points(&lines, CountFlag::WithDiagonals)
     );
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Eq, Hash, PartialEq)]
 struct Pos {
     x: usize,
     y: usize,
@@ -20,7 +22,22 @@ struct Pos {
 
 impl Pos {
     fn new(x: usize, y: usize) -> Pos {
-        Pos { x: x, y: y }
+        Pos { x, y }
+    }
+
+    fn step(&self, ordx: Ordering, ordy: Ordering) -> Pos {
+        Pos {
+            x: match ordx {
+                Ordering::Less => self.x + 1,
+                Ordering::Greater => self.x - 1,
+                Ordering::Equal => self.x,
+            },
+            y: match ordy {
+                Ordering::Less => self.y + 1,
+                Ordering::Greater => self.y - 1,
+                Ordering::Equal => self.y,
+            },
+        }
     }
 }
 
@@ -33,15 +50,6 @@ impl fmt::Debug for Pos {
 struct Line {
     start: Pos,
     end: Pos,
-    dir: Direction,
-}
-
-#[derive(Debug)]
-enum Direction {
-    Horizontal,
-    Vertical,
-    DiagUpRight,
-    DiagDownRight,
 }
 
 #[derive(Clone, Copy, PartialEq)]
@@ -51,153 +59,62 @@ enum CountFlag {
 }
 
 impl Line {
-    // Normalise lines so that x only increases.
-    // y only increases except when it's an up diagonal
-    fn new(start: Pos, end: Pos) -> Line {
-        if start.x == end.x {
-            Line {
-                start: Pos::new(start.x, start.y.min(end.y)),
-                end: Pos::new(end.x, start.y.max(end.y)),
-                dir: Direction::Vertical,
-            }
-        } else if start.y == end.y {
-            Line {
-                start: Pos::new(start.x.min(end.x), start.y),
-                end: Pos::new(start.x.max(end.x), start.y),
-                dir: Direction::Horizontal,
-            }
-        } else if start.x < end.x {
-            if start.y < end.y {
-                // Down and to the right
-                Line {
-                    start: start,
-                    end: end,
-                    dir: Direction::DiagDownRight,
-                }
-            } else {
-                // Up and to the right
-                Line {
-                    start: start,
-                    end: end,
-                    dir: Direction::DiagUpRight,
-                }
-            }
-        } else {
-            if start.y < end.y {
-                // Down and to the left - reverse
-                Line {
-                    start: end,
-                    end: start,
-                    dir: Direction::DiagUpRight,
-                }
-            } else {
-                // Up and to the left - reverse
-                Line {
-                    start: end,
-                    end: start,
-                    dir: Direction::DiagDownRight,
-                }
-            }
-        }
+    fn horizontal(&self) -> bool {
+        self.start.y == self.end.y
     }
 
-    fn covers(&self, pos: Pos, count_flag: CountFlag) -> bool {
-        pos.x >= self.start.x
-            && pos.x <= self.end.x
-            && match self.dir {
-                Direction::Vertical => {
-                    pos.x == self.start.x && pos.y >= self.start.y && pos.y <= self.end.y
-                }
-                Direction::Horizontal => pos.y == self.start.y,
-                Direction::DiagUpRight => {
-                    count_flag == CountFlag::WithDiagonals
-                        && pos.y >= self.end.y
-                        && pos.y <= self.start.y
-                        && pos.x - self.start.x == self.start.y - pos.y
-                }
-                Direction::DiagDownRight => {
-                    count_flag == CountFlag::WithDiagonals
-                        && pos.y >= self.start.y
-                        && pos.y <= self.end.y
-                        && pos.x - self.start.x == pos.y - self.start.y
-                }
-            }
+    fn vertical(&self) -> bool {
+        self.start.x == self.end.x
     }
 }
 
 impl fmt::Debug for Line {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?} -> {:?} ({:?})", self.start, self.end, self.dir)
+        write!(f, "{:?} -> {:?}", self.start, self.end)
     }
 }
 
-struct Grid {
-    lines: Vec<Line>,
-    min: Pos,
-    max: Pos,
-}
+fn count_overlapping_points(lines: &[Line], count_flag: CountFlag) -> usize {
+    let mut grid: HashMap<Pos, usize> = HashMap::new();
 
-impl Grid {
-    fn new(lines: Vec<Line>) -> Grid {
-        let min = Pos::new(0, 0);
-        let mut max = Pos::new(0, 0);
-        for line in lines.iter() {
-            if line.start.x > max.x {
-                max.x = line.start.x;
-            } else if line.end.x > max.x {
-                max.x = line.end.x;
-            }
-            if line.start.y > max.y {
-                max.y = line.start.y;
-            } else if line.end.y > max.y {
-                max.y = line.end.y;
-            }
+    for line in lines {
+        if CountFlag::WithoutDiagonals == count_flag && !(line.horizontal() || line.vertical()) {
+            continue;
         }
-        Grid {
-            lines: lines,
-            min,
-            max,
+        let mut pos = line.start;
+        let dx = line.start.x.cmp(&line.end.x);
+        let dy = line.start.y.cmp(&line.end.y);
+        loop {
+            *grid.entry(pos).or_insert(0) += 1;
+            if pos == line.end {
+                break;
+            }
+            pos = pos.step(dx, dy);
         }
     }
 
-    fn count_overlapping_points(&self, count_flag: CountFlag) -> usize {
-        let mut total = 0;
-        for y in self.min.y..=self.max.y {
-            for x in self.min.x..=self.max.x {
-                let mut count = 0;
-                for line in self.lines.iter() {
-                    if line.covers(Pos::new(x, y), count_flag) {
-                        count += 1;
-                        if count == 2 {
-                            total += 1;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        total
-    }
+    grid.values().filter(|&&n| n > 1).count()
 }
 
-fn parse_input(input: &str) -> Grid {
-    Grid::new(
-        input
-            .lines()
-            .map(|line| {
-                line.split(" -> ")
-                    .map(|coords| coords.split(','))
-                    .flatten()
-                    .map(|num| num.parse().unwrap())
-                    .collect::<Vec<usize>>()
-            })
-            .map(|nums| Line::new(Pos::new(nums[0], nums[1]), Pos::new(nums[2], nums[3])))
-            .collect(),
-    )
+fn parse_input(input: &str) -> Vec<Line> {
+    input
+        .lines()
+        .map(|line| {
+            line.split(" -> ")
+                .map(|coords| coords.split(','))
+                .flatten()
+                .map(|num| num.parse().unwrap())
+                .collect::<Vec<usize>>()
+        })
+        .map(|nums| Line {
+            start: Pos::new(nums[0], nums[1]),
+            end: Pos::new(nums[2], nums[3]),
+        })
+        .collect()
 }
 
 #[test]
-fn test() {
+fn test_day5() {
     let test_input = "\
 0,9 -> 5,9
 8,0 -> 0,8
@@ -210,13 +127,16 @@ fn test() {
 0,0 -> 8,8
 5,5 -> 8,2
 ";
-    let grid = parse_input(test_input);
-    assert_eq!(10, grid.lines.len());
-    assert_eq!(Pos::new(0, 9), grid.lines[0].start);
-    assert_eq!(Pos::new(5, 9), grid.lines[0].end);
+    let lines = parse_input(test_input);
+    assert_eq!(10, lines.len());
+    assert_eq!(Pos::new(0, 9), lines[0].start);
+    assert_eq!(Pos::new(5, 9), lines[0].end);
     assert_eq!(
         5,
-        grid.count_overlapping_points(CountFlag::WithoutDiagonals)
+        count_overlapping_points(&lines, CountFlag::WithoutDiagonals)
     );
-    assert_eq!(12, grid.count_overlapping_points(CountFlag::WithDiagonals));
+    assert_eq!(
+        12,
+        count_overlapping_points(&lines, CountFlag::WithDiagonals)
+    );
 }
