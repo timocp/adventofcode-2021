@@ -25,16 +25,16 @@ fn simulate_fish(timer: usize, days: usize) -> usize {
     count
 }
 
-fn simulate_population(fish: &Vec<usize>, days: usize) -> usize {
+fn simulate_population(fish: &[usize], days: usize) -> usize {
     fish.iter().map(|&timer| simulate_fish(timer, days)).sum()
 }
 
 fn parse_input(input: &str) -> Vec<usize> {
     input
         .lines()
-        .nth(0)
+        .next()
         .unwrap()
-        .split(",")
+        .split(',')
         .map(|num| num.parse().unwrap())
         .collect()
 }
