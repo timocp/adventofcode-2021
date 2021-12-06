@@ -1,4 +1,3 @@
-use regex::Regex;
 use std::fmt;
 
 pub fn run(input: &str) {
@@ -182,23 +181,17 @@ impl Grid {
 }
 
 fn parse_input(input: &str) -> Grid {
-    let re = Regex::new(r"^(\d+),(\d+) -> (\d+),(\d+)$").unwrap();
     Grid::new(
         input
             .lines()
-            .map(|line| re.captures(line).unwrap())
-            .map(|caps| {
-                Line::new(
-                    Pos::new(
-                        caps.get(1).unwrap().as_str().parse().unwrap(),
-                        caps.get(2).unwrap().as_str().parse().unwrap(),
-                    ),
-                    Pos::new(
-                        caps.get(3).unwrap().as_str().parse().unwrap(),
-                        caps.get(4).unwrap().as_str().parse().unwrap(),
-                    ),
-                )
+            .map(|line| {
+                line.split(" -> ")
+                    .map(|coords| coords.split(','))
+                    .flatten()
+                    .map(|num| num.parse().unwrap())
+                    .collect::<Vec<usize>>()
             })
+            .map(|nums| Line::new(Pos::new(nums[0], nums[1]), Pos::new(nums[2], nums[3])))
             .collect(),
     )
 }
