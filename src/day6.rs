@@ -1,11 +1,14 @@
+use memoize::memoize;
+
 pub fn run(input: &str) {
     let input = parse_input(input);
     println!("Day 6, part one: {}", simulate_population(&input, 80));
+    println!("Day 6, part one: {}", simulate_population(&input, 256));
 }
 
 // For a fish with a certain timer, how many descendent fish are there after
 // a number of days?
-// TODO: may be necessary to memoize
+#[memoize]
 fn simulate_fish(timer: usize, days: usize) -> usize {
     let mut timer = timer;
     let mut days = days;
