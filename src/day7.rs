@@ -1,11 +1,18 @@
 pub fn run(input: &str) {
     let crabs = parse_input(input);
-    println!("Day 7, part one: {}", least_fuel(&crabs).unwrap());
+    println!(
+        "Day 7, part one: {}",
+        least_fuel(&crabs, measure_fuel).unwrap()
+    );
+    println!(
+        "Day 7, part two: {}",
+        least_fuel(&crabs, measure_fuel2).unwrap()
+    );
 }
 
-fn least_fuel(crabs: &[usize]) -> Option<usize> {
+fn least_fuel(crabs: &[usize], fuel: impl Fn(&[usize], usize) -> usize) -> Option<usize> {
     let last_pos = *crabs.iter().max().unwrap();
-    (0..=last_pos).map(|pos| measure_fuel(crabs, pos)).min()
+    (0..=last_pos).map(|pos| fuel(crabs, pos)).min()
 }
 
 // measure fuel needed to move all crabs to a specific position
@@ -13,6 +20,23 @@ fn measure_fuel(crabs: &[usize], pos: usize) -> usize {
     crabs
         .iter()
         .map(|&crab| if crab > pos { crab - pos } else { pos - crab })
+        .sum()
+}
+
+fn triangle_number(n: usize) -> usize {
+    n * (n + 1) / 2
+}
+
+fn measure_fuel2(crabs: &[usize], pos: usize) -> usize {
+    crabs
+        .iter()
+        .map(|&crab| {
+            if crab > pos {
+                triangle_number(crab - pos)
+            } else {
+                triangle_number(pos - crab)
+            }
+        })
         .sum()
 }
 
@@ -36,5 +60,11 @@ fn test_day7() {
     assert_eq!(37, measure_fuel(&crabs, 2));
     assert_eq!(39, measure_fuel(&crabs, 3));
     assert_eq!(71, measure_fuel(&crabs, 10));
-    assert_eq!(37, least_fuel(&crabs).unwrap());
+    assert_eq!(37, least_fuel(&crabs, measure_fuel).unwrap());
+
+    assert_eq!(15, triangle_number(5));
+    assert_eq!(1830, triangle_number(60));
+    assert_eq!(206, measure_fuel2(&crabs, 2));
+    assert_eq!(168, measure_fuel2(&crabs, 5));
+    assert_eq!(168, least_fuel(&crabs, measure_fuel2).unwrap());
 }
