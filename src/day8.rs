@@ -1,6 +1,11 @@
-pub fn run(input: &str) {
+use crate::Part;
+
+pub fn run(input: &str, part: Part) -> String {
     let entries = parse_input(input);
-    println!("Day 8, part one: {}", count_part1(&entries));
+    match part {
+        Part::One => format!("{}", count_part1(&entries)),
+        Part::Two => "(still thinking)".to_string(),
+    }
 }
 
 struct Entry<'a> {

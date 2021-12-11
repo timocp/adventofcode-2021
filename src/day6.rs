@@ -1,9 +1,15 @@
+use crate::Part;
 use memoize::memoize;
 
-pub fn run(input: &str) {
+pub fn run(input: &str, part: Part) -> String {
     let input = parse_input(input);
-    println!("Day 6, part one: {}", simulate_population(&input, 80));
-    println!("Day 6, part one: {}", simulate_population(&input, 256));
+    format!(
+        "{}",
+        match part {
+            Part::One => simulate_population(&input, 80),
+            Part::Two => simulate_population(&input, 256),
+        }
+    )
 }
 
 // For a fish with a certain timer, how many descendent fish are there after

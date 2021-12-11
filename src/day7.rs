@@ -1,13 +1,18 @@
-pub fn run(input: &str) {
+use crate::Part;
+
+pub fn run(input: &str, part: Part) -> String {
     let crabs = parse_input(input);
-    println!(
-        "Day 7, part one: {}",
-        least_fuel(&crabs, measure_fuel).unwrap()
-    );
-    println!(
-        "Day 7, part two: {}",
-        least_fuel(&crabs, measure_fuel2).unwrap()
-    );
+    format!(
+        "{}",
+        least_fuel(
+            &crabs,
+            match part {
+                Part::One => measure_fuel,
+                Part::Two => measure_fuel2,
+            }
+        )
+        .unwrap()
+    )
 }
 
 fn least_fuel(crabs: &[usize], fuel: impl Fn(&[usize], usize) -> usize) -> Option<usize> {

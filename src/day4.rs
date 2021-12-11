@@ -1,10 +1,16 @@
+use crate::Part;
 use std::fmt;
 
-pub fn run(input: &str) {
+pub fn run(input: &str, part: Part) -> String {
     let (numbers, boards) = parse_input(input);
-    println!("Day 4, part one: {}", play_to_win(numbers, boards).score());
-    let (numbers, boards) = parse_input(input);
-    println!("Day 4, part two: {}", play_to_lose(numbers, boards).score());
+    format!(
+        "{}",
+        match part {
+            Part::One => play_to_win(numbers, boards),
+            Part::Two => play_to_lose(numbers, boards),
+        }
+        .score()
+    )
 }
 
 struct Board {

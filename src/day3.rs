@@ -1,11 +1,17 @@
-pub fn run(input: &str) {
+use crate::Part;
+
+pub fn run(input: &str, part: Part) -> String {
     let input = parse_input(input);
-    let (gamma, epsilon) = calc_power_consumption(&input);
-    println!("Day 3, part one: {}", gamma * epsilon);
-    println!(
-        "Day 3, part two: {}",
-        calc_oxygen_generator_rating(&input) * calc_co2_scrubber_rating(&input)
-    );
+    format!(
+        "{}",
+        match part {
+            Part::One => {
+                let (gamma, epsilon) = calc_power_consumption(&input);
+                gamma * epsilon
+            }
+            Part::Two => calc_oxygen_generator_rating(&input) * calc_co2_scrubber_rating(&input),
+        }
+    )
 }
 
 fn calc_power_consumption(input: &[usize]) -> (usize, usize) {

@@ -1,17 +1,17 @@
+use crate::Part;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt;
 
-pub fn run(input: &str) {
+pub fn run(input: &str, part: Part) -> String {
     let lines = parse_input(input);
-    println!(
-        "Day 5, part one: {}",
-        count_overlapping_points(&lines, CountFlag::WithoutDiagonals)
-    );
-    println!(
-        "Day 5, part two: {}",
-        count_overlapping_points(&lines, CountFlag::WithDiagonals)
-    );
+    format!(
+        "{}",
+        match part {
+            Part::One => count_overlapping_points(&lines, CountFlag::WithoutDiagonals),
+            Part::Two => count_overlapping_points(&lines, CountFlag::WithDiagonals),
+        }
+    )
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]

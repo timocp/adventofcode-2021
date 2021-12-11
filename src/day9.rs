@@ -1,9 +1,12 @@
+use crate::Part;
 use std::collections::HashSet;
 
-pub fn run(input: &str) {
+pub fn run(input: &str, part: Part) -> String {
     let grid = Grid::new(input);
-    println!("Day 9, part one: {}", grid.part1());
-    println!("Day 9, part one: {}", grid.part2());
+    match part {
+        Part::One => format!("{}", grid.part1()),
+        Part::Two => format!("{}", grid.part2()),
+    }
 }
 
 struct Grid {

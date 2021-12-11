@@ -1,15 +1,23 @@
+use crate::Part;
 use std::fmt;
 
-pub fn run(input: &str) {
+pub fn run(input: &str, part: Part) -> String {
     let mut grid = Grid::new(input);
     for _ in 0..100 {
         grid = grid.step();
     }
-    println!("Day 11, part one: {}", grid.total_flashes);
-    while grid.flashes != grid.rows * grid.cols {
-        grid = grid.step();
-    }
-    println!("Day 11, part two: {}", grid.total_steps);
+    format!(
+        "{}",
+        match part {
+            Part::One => grid.total_flashes,
+            Part::Two => {
+                while grid.flashes != grid.rows * grid.cols {
+                    grid = grid.step();
+                }
+                grid.total_steps
+            }
+        }
+    )
 }
 
 #[derive(Clone)]

@@ -1,13 +1,13 @@
-pub fn run(input: &str) {
+use crate::Part;
+
+pub fn run(input: &str, part: Part) -> String {
     let commands = parse_input(input);
-
     let mut sub = Sub::new();
-    sub.follow(&commands);
-    println!("Day 2, part one: {:?}", sub.answer());
-
-    sub = Sub::new();
-    sub.follow2(&commands);
-    println!("Day 2, part two: {:?}", sub.answer());
+    match part {
+        Part::One => sub.follow(&commands),
+        Part::Two => sub.follow2(&commands),
+    }
+    format!("{}", sub.answer())
 }
 
 #[derive(Debug)]

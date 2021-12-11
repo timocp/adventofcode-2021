@@ -1,7 +1,11 @@
-pub fn run(input: &str) {
+use crate::Part;
+
+pub fn run(input: &str, part: Part) -> String {
     let input = parse_input(input);
-    println!("Day 1, part one: {}", count_increases(&input));
-    println!("Day 1, part two: {}", count_sliding_increases(&input));
+    match part {
+        Part::One => format!("{}", count_increases(&input)),
+        Part::Two => format!("{}", count_sliding_increases(&input)),
+    }
 }
 
 fn parse_input(input: &str) -> Vec<i32> {

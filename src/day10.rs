@@ -1,7 +1,14 @@
-pub fn run(input: &str) {
+use crate::Part;
+
+pub fn run(input: &str, part: Part) -> String {
     let lines = parse_input(input);
-    println!("Day 10, part one: {}", part1(&lines));
-    println!("Day 10, part two: {}", part2(&lines));
+    format!(
+        "{}",
+        match part {
+            Part::One => part1(&lines),
+            Part::Two => part2(&lines),
+        }
+    )
 }
 
 fn illegal_char_score(c: char) -> usize {
