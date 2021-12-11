@@ -5,7 +5,11 @@ pub fn run(input: &str) {
     for _ in 0..100 {
         grid = grid.step();
     }
-    println!("Day 11, part one: {}", grid.flashes);
+    println!("Day 11, part one: {}", grid.total_flashes);
+    while grid.flashes != grid.rows * grid.cols {
+        grid = grid.step();
+    }
+    println!("Day 11, part two: {}", grid.total_steps);
 }
 
 #[derive(Clone)]
@@ -14,6 +18,8 @@ struct Grid {
     rows: usize,
     cols: usize,
     flashes: usize,
+    total_flashes: usize,
+    total_steps: usize,
 }
 
 impl Grid {
@@ -29,6 +35,8 @@ impl Grid {
             rows,
             cols,
             flashes: 0,
+            total_flashes: 0,
+            total_steps: 0,
         }
     }
 
@@ -69,6 +77,7 @@ impl Grid {
         }
 
         // anything that flashed is now 0
+        next.flashes = 0;
         for row in 0..next.rows {
             for col in 0..next.cols {
                 if next.state[row][col] > 9 {
@@ -77,6 +86,8 @@ impl Grid {
                 }
             }
         }
+        next.total_flashes += next.flashes;
+        next.total_steps += 1;
 
         next
     }
@@ -149,5 +160,5 @@ fn test() {
     for _ in 0..100 {
         grid = grid.step();
     }
-    assert_eq!(1656, grid.flashes);
+    assert_eq!(1656, grid.total_flashes);
 }
