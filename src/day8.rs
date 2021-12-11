@@ -22,8 +22,8 @@ impl Entry<'_> {
     }
 }
 
-fn count_part1(entries: &Vec<Entry>) -> usize {
-    entries.into_iter().map(|entry| entry.count_part1()).sum()
+fn count_part1(entries: &[Entry]) -> usize {
+    entries.iter().map(|entry| entry.count_part1()).sum()
 }
 
 fn parse_input(input: &str) -> Vec<Entry> {

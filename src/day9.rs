@@ -83,7 +83,7 @@ impl Grid {
         for start in self.lowpoints() {
             basins.push(self.basin_size(start, &mut seen));
         }
-        basins.sort();
+        basins.sort_unstable();
         basins.iter().rev().take(3).product()
     }
 }
