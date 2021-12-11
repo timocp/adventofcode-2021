@@ -4,6 +4,7 @@ use std::io::Read;
 
 mod day1;
 mod day10;
+mod day11;
 mod day2;
 mod day3;
 mod day4;
@@ -39,6 +40,7 @@ fn run(day: i32) {
             8 => day8::run(&data),
             9 => day9::run(&data),
             10 => day10::run(&data),
+            11 => day11::run(&data),
             _ => eprintln!("Day {} not implemented", day),
         },
         Err(e) => eprintln!("{}: {}", filename, e),
