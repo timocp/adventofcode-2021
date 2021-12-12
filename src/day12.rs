@@ -5,10 +5,24 @@ pub fn run(input: &str, part: Part) -> String {
     format!(
         "{}",
         match part {
-            Part::One => system.count_paths(&[0]),
-            Part::Two => 0,
+            Part::One => part1(&system),
+            Part::Two => part2(&system),
         }
     )
+}
+
+fn part1(system: &CaveSystem) -> usize {
+    system.count_paths(&[0], Revisit::NotAllowed)
+}
+
+fn part2(system: &CaveSystem) -> usize {
+    system.count_paths(&[0], Revisit::Allowed)
+}
+
+#[derive(Clone, Copy)]
+enum Revisit {
+    Allowed,
+    NotAllowed,
 }
 
 #[derive(Debug, PartialEq)]
@@ -62,7 +76,7 @@ impl CaveSystem {
         &self.caves[index]
     }
 
-    fn count_paths(&self, path: &[usize]) -> usize {
+    fn count_paths(&self, path: &[usize], revisit: Revisit) -> usize {
         let this_cave_id = *path.last().unwrap();
         if self.cave(this_cave_id).cave_type == CaveType::End {
             // println!(
@@ -82,14 +96,24 @@ impl CaveSystem {
                 match to_cave.cave_type {
                     CaveType::Start => 0, // may not revisit
                     CaveType::Big | CaveType::End => {
-                        self.count_paths(&path_append(path, *to_cave_id))
+                        self.count_paths(&path_append(path, *to_cave_id), revisit)
                     }
                     CaveType::Small => {
                         if path.contains(to_cave_id) {
-                            // may not revisit
-                            0
+                            match revisit {
+                                Revisit::Allowed => {
+                                    // only allowed once per path
+                                    self.count_paths(
+                                        &path_append(path, *to_cave_id),
+                                        Revisit::NotAllowed,
+                                    )
+                                }
+                                Revisit::NotAllowed => {
+                                    0 // no small revisits are allowed
+                                }
+                            }
                         } else {
-                            self.count_paths(&path_append(path, *to_cave_id))
+                            self.count_paths(&path_append(path, *to_cave_id), revisit)
                         }
                     }
                 }
@@ -110,7 +134,7 @@ fn parse_input(input: &str) -> CaveSystem {
         caves: vec![],
         links: vec![],
     };
-    // we want start to alwats be cave number 0
+    // we want start to always be cave number 0
     system.add_cave("start");
     for line in input.lines() {
         let names: Vec<&str> = line.split('-').collect();
@@ -142,8 +166,10 @@ b-end
     assert_eq!(CaveType::Small, system.cave(2).cave_type);
     assert_eq!("end", system.cave(5).name);
     assert_eq!(CaveType::End, system.cave(5).cave_type);
-    assert_eq!(1, system.count_paths(&[5]));
-    assert_eq!(10, system.count_paths(&[0]));
+    assert_eq!(1, system.count_paths(&[5], Revisit::NotAllowed));
+    assert_eq!(10, system.count_paths(&[0], Revisit::NotAllowed));
+    assert_eq!(10, part1(&system));
+    assert_eq!(36, part2(&system));
 
     let test_input2 = "\
 dc-end
@@ -158,7 +184,8 @@ kj-HN
 kj-dc
 ";
     let system2 = parse_input(test_input2);
-    assert_eq!(19, system2.count_paths(&[0]));
+    assert_eq!(19, part1(&system2));
+    assert_eq!(103, part2(&system2));
 
     let test_input3 = "\
 fs-end
@@ -181,5 +208,6 @@ pj-fs
 start-RW
 ";
     let system3 = parse_input(test_input3);
-    assert_eq!(226, system3.count_paths(&[0]));
+    assert_eq!(226, part1(&system3));
+    assert_eq!(3509, part2(&system3));
 }
