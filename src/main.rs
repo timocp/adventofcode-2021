@@ -7,6 +7,7 @@ use std::time::Instant;
 mod day1;
 mod day10;
 mod day11;
+mod day12;
 mod day2;
 mod day3;
 mod day4;
@@ -69,6 +70,7 @@ fn run(day: i32, part: Part) {
                 9 => day9::run(&input, part),
                 10 => day10::run(&input, part),
                 11 => day11::run(&input, part),
+                12 => day12::run(&input, part),
                 _ => "Not implemented".to_string(),
             };
             println!(
