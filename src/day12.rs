@@ -12,11 +12,11 @@ pub fn run(input: &str, part: Part) -> String {
 }
 
 fn part1(system: &CaveSystem) -> usize {
-    system.count_paths(&[0], Revisit::NotAllowed)
+    system.count_paths(&mut vec![0], Revisit::NotAllowed)
 }
 
 fn part2(system: &CaveSystem) -> usize {
-    system.count_paths(&[0], Revisit::Allowed)
+    system.count_paths(&mut vec![0], Revisit::Allowed)
 }
 
 #[derive(Clone, Copy)]
@@ -43,6 +43,16 @@ struct Cave {
 struct CaveSystem {
     caves: Vec<Cave>,       // vector of caves, index is cave number
     links: Vec<Vec<usize>>, // set of links between caves
+}
+
+// macro to push a cave id and then remove it to share vector in path search
+macro_rules! explore_path {
+    ($self:ident, $path:ident, $to_cave_id:expr, $revisit:expr) => {{
+        $path.push($to_cave_id);
+        let count = $self.count_paths(&mut $path, $revisit);
+        $path.pop();
+        count
+    }};
 }
 
 impl CaveSystem {
@@ -76,7 +86,7 @@ impl CaveSystem {
         &self.caves[index]
     }
 
-    fn count_paths(&self, path: &[usize], revisit: Revisit) -> usize {
+    fn count_paths(&self, mut path: &mut Vec<usize>, revisit: Revisit) -> usize {
         let this_cave_id = *path.last().unwrap();
         if self.cave(this_cave_id).cave_type == CaveType::End {
             // println!(
@@ -96,24 +106,21 @@ impl CaveSystem {
                 match to_cave.cave_type {
                     CaveType::Start => 0, // may not revisit
                     CaveType::Big | CaveType::End => {
-                        self.count_paths(&path_append(path, *to_cave_id), revisit)
+                        explore_path!(self, path, *to_cave_id, revisit)
                     }
                     CaveType::Small => {
                         if path.contains(to_cave_id) {
                             match revisit {
                                 Revisit::Allowed => {
                                     // only allowed once per path
-                                    self.count_paths(
-                                        &path_append(path, *to_cave_id),
-                                        Revisit::NotAllowed,
-                                    )
+                                    explore_path!(self, path, *to_cave_id, Revisit::NotAllowed)
                                 }
                                 Revisit::NotAllowed => {
                                     0 // no small revisits are allowed
                                 }
                             }
                         } else {
-                            self.count_paths(&path_append(path, *to_cave_id), revisit)
+                            explore_path!(self, path, *to_cave_id, revisit)
                         }
                     }
                 }
@@ -121,12 +128,6 @@ impl CaveSystem {
             .sum();
         v
     }
-}
-
-fn path_append(path: &[usize], value: usize) -> Vec<usize> {
-    let mut new = path.to_owned();
-    new.push(value);
-    new
 }
 
 fn parse_input(input: &str) -> CaveSystem {
@@ -166,8 +167,8 @@ b-end
     assert_eq!(CaveType::Small, system.cave(2).cave_type);
     assert_eq!("end", system.cave(5).name);
     assert_eq!(CaveType::End, system.cave(5).cave_type);
-    assert_eq!(1, system.count_paths(&[5], Revisit::NotAllowed));
-    assert_eq!(10, system.count_paths(&[0], Revisit::NotAllowed));
+    assert_eq!(1, system.count_paths(&mut vec![5], Revisit::NotAllowed));
+    assert_eq!(10, system.count_paths(&mut vec![0], Revisit::NotAllowed));
     assert_eq!(10, part1(&system));
     assert_eq!(36, part2(&system));
 
