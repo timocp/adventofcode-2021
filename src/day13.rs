@@ -2,14 +2,16 @@ use crate::Part;
 use std::collections::HashSet;
 
 pub fn run(input: &str, part: Part) -> String {
-    let (paper, folds) = parse_input(input);
-    format!(
-        "{}",
-        match part {
-            Part::One => fold_paper(&paper, folds[0]).len(),
-            Part::Two => 0,
+    let (mut paper, folds) = parse_input(input);
+    match part {
+        Part::One => format!("{}", fold_paper(&paper, folds[0]).len()),
+        Part::Two => {
+            for fold in folds {
+                paper = fold_paper(&paper, fold);
+            }
+            print_paper(&paper)
         }
-    )
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -21,7 +23,6 @@ enum Fold {
 // set of dots are (row, column)
 type Paper = HashSet<(usize, usize)>;
 
-#[allow(dead_code)]
 fn print_paper(paper: &Paper) -> String {
     let mut s = String::new();
     let maxrow = *paper.iter().map(|(row, _)| row).max().unwrap();
@@ -29,9 +30,9 @@ fn print_paper(paper: &Paper) -> String {
     for row in 0..=maxrow {
         for col in 0..=maxcol {
             if paper.contains(&(row, col)) {
-                s += "#";
+                s += "█";
             } else {
-                s += ".";
+                s += " ";
             }
         }
         s += "\n";

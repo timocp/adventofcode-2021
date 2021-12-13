@@ -85,9 +85,18 @@ fn run(day: i32) {
                 };
                 println!(
                     "{:56} {1:.3}s",
-                    result,
+                    if result.contains('\n') {
+                        result.lines().next().unwrap()
+                    } else {
+                        &result
+                    },
                     Instant::now().duration_since(t0).as_secs_f64()
                 );
+                if result.contains('\n') {
+                    for line in result.lines().skip(1) {
+                        println!("{:17}{}", "", line);
+                    }
+                }
             }
         }
         Err(e) => eprintln!("{}: {}", filename, e),
