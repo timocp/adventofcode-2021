@@ -1,66 +1,64 @@
 use crate::Part;
 use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::fmt;
 
 pub fn run(input: &str, part: Part) -> String {
-    let (mut polymer, rules) = parse_input(input);
-    match part {
-        Part::One => format!("{}", part1(&mut polymer, &rules)),
-        Part::Two => "?".to_string(),
-    }
+    let (polymer, rules) = parse_input(input);
+    format!(
+        "{}",
+        match part {
+            Part::One => apply(&polymer, &rules, 10),
+            Part::Two => apply(&polymer, &rules, 40),
+        }
+    )
 }
 
-fn part1(polymer: &mut Polymer, rules: &RuleSet) -> usize {
-    for _ in 0..10 {
-        polymer.apply(rules);
+fn apply(polymer: &Polymer, rules: &RuleSet, times: usize) -> usize {
+    let mut p: Polymer = polymer.apply(rules);
+    for _ in 1..times {
+        p = p.apply(rules);
     }
-    let tally = polymer.tally();
+    let tally = p.tally();
     tally.values().max().unwrap() - tally.values().min().unwrap()
 }
 
-// would it be faster to use a real linked list?  there are a lot of inserts.
-// would it be faster to return a new owned vec instead of modifying in-place?
-struct Polymer(VecDeque<char>);
+// store polymer as the numbers of element pairs.  the final character
+// is paired with a '$' indicating the end of the polymer.
+struct Polymer(HashMap<(char, char), usize>);
 
 impl Polymer {
     fn new(input: &str) -> Polymer {
-        let mut list = VecDeque::new();
-        for c in input.chars() {
-            list.push_back(c);
+        let mut hash = HashMap::new();
+        let chars: Vec<char> = input.chars().collect();
+        if !chars.is_empty() {
+            for i in 0..(chars.len() - 1) {
+                *hash.entry((chars[i], chars[i + 1])).or_insert(0) += 1;
+            }
+            hash.insert((chars[chars.len() - 1], '$'), 1);
         }
-        Polymer(list)
+        Polymer(hash)
     }
 
-    fn apply(&mut self, rule: &RuleSet) {
-        let mut i = 0;
-        while i < self.0.len() - 1 {
-            let c = *self.0.get(i).unwrap();
-            let nc = *self.0.get(i + 1).unwrap();
-            if let Some(ins) = rule.get(&(c, nc)) {
-                self.0.insert(i + 1, *ins);
-                i += 1;
+    fn apply(&self, rules: &RuleSet) -> Polymer {
+        let mut hash: HashMap<(char, char), usize> = HashMap::new();
+        for (pair, count) in self.0.iter() {
+            if pair.1 == '$' {
+                hash.insert(*pair, *count);
+            } else if let Some(ins) = rules.get(&(pair.0, pair.1)) {
+                *hash.entry((pair.0, *ins)).or_insert(0) += count;
+                *hash.entry((*ins, pair.1)).or_insert(0) += count;
+            } else {
+                panic!("No rule for {:?}", pair);
             }
-            i += 1;
         }
+        Polymer(hash)
     }
 
     fn tally(&self) -> HashMap<char, usize> {
-        let mut map = HashMap::new();
-
-        for c in self.0.iter() {
-            *map.entry(*c).or_insert(0) += 1;
+        let mut counts = HashMap::new();
+        for (pair, count) in self.0.iter() {
+            *counts.entry(pair.0).or_insert(0) += count;
         }
-
-        map
-    }
-}
-
-impl fmt::Display for Polymer {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        Ok(for c in self.0.iter() {
-            write!(f, "{}", c)?;
-        })
+        counts
     }
 }
 
@@ -109,28 +107,8 @@ BC -> B
 CC -> N
 CN -> C
 ";
-    let (mut polymer, rules) = parse_input(test_input);
-    assert_eq!("NNCB", format!("{}", polymer));
+    let (polymer, rules) = parse_input(test_input);
     assert_eq!(16, rules.len());
-    polymer.apply(&rules);
-    assert_eq!("NCNBCHB", format!("{}", polymer));
-    polymer.apply(&rules);
-    assert_eq!("NBCCNBBBCBHCB", format!("{}", polymer));
-    polymer.apply(&rules);
-    assert_eq!("NBBBCNCCNBBNBNBBCHBHHBCHB", format!("{}", polymer));
-    polymer.apply(&rules);
-    assert_eq!(
-        "NBBNBNBBCCNBCNCCNBBNBBNBBBNBBNBBCBHCBHHNHCBBCBHCB",
-        format!("{}", polymer)
-    );
-    polymer.apply(&rules);
-    polymer.apply(&rules);
-    polymer.apply(&rules);
-    polymer.apply(&rules);
-    polymer.apply(&rules);
-    polymer.apply(&rules);
-    assert_eq!(3073, format!("{}", polymer).len());
-
-    let (mut polymer, rules) = parse_input(test_input);
-    assert_eq!(1588, part1(&mut polymer, &rules));
+    assert_eq!(1588, apply(&polymer, &rules, 10));
+    assert_eq!(2188189693529, apply(&polymer, &rules, 40));
 }
