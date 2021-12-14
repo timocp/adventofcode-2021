@@ -5,10 +5,14 @@ pub fn run(input: &str, part: Part) -> String {
     let (polymer, rules) = parse_input(input);
     format!(
         "{}",
-        match part {
-            Part::One => apply(&polymer, &rules, 10),
-            Part::Two => apply(&polymer, &rules, 40),
-        }
+        apply(
+            &polymer,
+            &rules,
+            match part {
+                Part::One => 10,
+                Part::Two => 40,
+            }
+        )
     )
 }
 
@@ -62,6 +66,7 @@ impl Polymer {
     }
 }
 
+// Rules are a map of character pairs to the character to insert between them
 type RuleSet = HashMap<(char, char), char>;
 
 fn parse_input(input: &str) -> (Polymer, RuleSet) {
