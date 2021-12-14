@@ -125,11 +125,11 @@ fold along x=5
     let paper = fold_paper(&paper, folds[1]);
     assert_eq!(
         "\
-#####
-#...#
-#...#
-#...#
-#####
+█████
+█   █
+█   █
+█   █
+█████
 ",
         print_paper(&paper)
     );
