@@ -80,12 +80,10 @@ impl Cave {
 
     fn lowest_risk(&self) -> usize {
         let mut frontier: BinaryHeap<(Reverse<usize>, (usize, usize))> = BinaryHeap::new();
-        let mut came_from: HashMap<(usize, usize), Option<(usize, usize)>> = HashMap::new();
         let mut cost_so_far: HashMap<(usize, usize), usize> = HashMap::new();
         let goal = (self.height - 1, self.width - 1);
 
         frontier.push((Reverse(0), (0, 0)));
-        came_from.insert((0, 0), None);
         cost_so_far.insert((0, 0), 0);
 
         while let Some((_, current)) = frontier.pop() {
@@ -98,7 +96,6 @@ impl Cave {
                 if !cost_so_far.contains_key(&next) || new_cost < *cost_so_far.get(&next).unwrap() {
                     cost_so_far.insert(next, new_cost);
                     frontier.push((Reverse(new_cost), next));
-                    came_from.insert(next, Some(current));
                 }
             }
         }
