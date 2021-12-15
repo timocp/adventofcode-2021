@@ -4,14 +4,11 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 
 pub fn run(input: &str, part: Part) -> String {
-    let cave = Cave::new(input);
-    format!(
-        "{}",
-        match part {
-            Part::One => cave.lowest_risk(),
-            Part::Two => 0,
-        }
-    )
+    let mut cave = Cave::new(input);
+    if let Part::Two = part {
+        cave = cave.embiggen();
+    }
+    format!("{}", cave.lowest_risk())
 }
 
 #[derive(Debug)]
@@ -29,6 +26,30 @@ impl Cave {
             .collect();
         let height = risks.len();
         let width = risks[0].len();
+        Cave {
+            risks,
+            height,
+            width,
+        }
+    }
+
+    // Return a new cave 5 times bigger in each axis
+    fn embiggen(&self) -> Cave {
+        let mut risks: Vec<Vec<usize>> = vec![vec![0; self.width * 5]; self.height * 5];
+        let height = self.height * 5;
+        let width = self.width * 5;
+
+        for tile_row in 0..5 {
+            for tile_col in 0..5 {
+                for row in 0..self.width {
+                    for col in 0..self.height {
+                        risks[self.height * tile_row + row][self.width * tile_col + col] =
+                            (self.risks[row][col] + tile_row + tile_col - 1) % 9 + 1;
+                    }
+                }
+            }
+        }
+
         Cave {
             risks,
             height,
@@ -108,4 +129,6 @@ fn test() {
     );
     assert_eq!(vec![(8, 9), (9, 8)], cave.neighbours((9, 9)));
     assert_eq!(40, cave.lowest_risk());
+    let cave = cave.embiggen();
+    assert_eq!(315, cave.lowest_risk());
 }
