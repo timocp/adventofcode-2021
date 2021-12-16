@@ -13,49 +13,28 @@ pub fn run(input: &str, part: Part) -> String {
 }
 
 #[derive(Debug)]
-enum Content {
-    Literal(u64),
-    Subpackets(Vec<Packet>),
-}
-
-#[derive(Debug)]
 struct Packet {
     version: u8,
     type_id: u8,
-    content: Content,
+    literal: Option<u64>,
+    subpackets: Vec<Packet>,
 }
 
 impl Packet {
-    fn literal(&self) -> u64 {
-        if let Content::Literal(n) = self.content {
-            n
-        } else {
-            panic!("Not a literal value");
-        }
-    }
-
     fn get_subpacket(&self, i: usize) -> &Packet {
-        if let Content::Subpackets(subpackets) = &self.content {
-            &subpackets[i]
-        } else {
-            panic!("No subpackets");
-        }
+        &self.subpackets[i]
     }
 
     fn sub_values(&self) -> impl Iterator<Item = u64> + '_ {
-        if let Content::Subpackets(subs) = &self.content {
-            subs.iter().map(|sub| sub.value())
-        } else {
-            panic!("No subpackets");
-        }
+        self.subpackets.iter().map(|sub| sub.value())
     }
 
     fn sum_versions(&self) -> u64 {
-        self.version as u64
-            + match &self.content {
-                Content::Literal(_) => 0,
-                Content::Subpackets(subs) => subs.iter().map(|p| p.sum_versions()).sum(),
-            }
+        self.subpackets
+            .iter()
+            .map(|p| p.sum_versions())
+            .sum::<u64>()
+            + self.version as u64
     }
 
     fn value(&self) -> u64 {
@@ -86,6 +65,10 @@ impl Packet {
 
     fn maximum(&self) -> u64 {
         self.sub_values().max().unwrap()
+    }
+
+    fn literal(&self) -> u64 {
+        self.literal.unwrap()
     }
 
     fn greater_than(&self) -> u64 {
@@ -125,7 +108,8 @@ fn parse_number(size: u8, bits: &mut VecDeque<u8>) -> u64 {
 fn parse_packet(bits: &mut VecDeque<u8>) -> Packet {
     let version = parse_number(3, bits) as u8;
     let type_id = parse_number(3, bits) as u8;
-    let content: Content;
+    let mut literal = None;
+    let mut subpackets = vec![];
 
     if type_id == 4 {
         // literal number
@@ -138,35 +122,34 @@ fn parse_packet(bits: &mut VecDeque<u8>) -> Packet {
                 break;
             }
         }
-        content = Content::Literal(number);
+        literal = Some(number);
     } else {
         // operator, contains subpackets
-        let mut subs = vec![];
         match bits.pop_front().unwrap() {
             0 => {
                 // indicates number of bits that make up the subpackets
                 let sub_length = parse_number(15, bits) as usize;
                 let start_size = bits.len();
                 while start_size - bits.len() < sub_length {
-                    subs.push(parse_packet(bits));
+                    subpackets.push(parse_packet(bits));
                 }
             }
             1 => {
                 // indicates number of subpackets
                 let count = parse_number(11, bits);
                 for _ in 0..count {
-                    subs.push(parse_packet(bits));
+                    subpackets.push(parse_packet(bits));
                 }
             }
             _ => unreachable!(),
         }
-        content = Content::Subpackets(subs);
     }
 
     Packet {
         version,
         type_id,
-        content,
+        literal,
+        subpackets,
     }
 }
 
