@@ -51,5 +51,4 @@ fn test() {
 }
 EOF
 
-echo "Preview of input:"
-head -c 200 "$input" | head -10
+less "$input"
