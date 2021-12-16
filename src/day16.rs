@@ -2,11 +2,12 @@ use crate::Part;
 use std::collections::VecDeque;
 
 pub fn run(input: &str, part: Part) -> String {
+    let packet = parse_input(input);
     format!(
         "{}",
         match part {
-            Part::One => parse_input(input).sum_versions(),
-            Part::Two => 0,
+            Part::One => packet.sum_versions(),
+            Part::Two => packet.value(),
         }
     )
 }
@@ -25,21 +26,27 @@ struct Packet {
 }
 
 impl Packet {
-    #[allow(dead_code)]
     fn literal(&self) -> u64 {
         if let Content::Literal(n) = self.content {
             n
         } else {
-            panic!("Not a literal value")
+            panic!("Not a literal value");
         }
     }
 
-    #[allow(dead_code)]
-    fn subpacket(&self, i: usize) -> &Packet {
+    fn get_subpacket(&self, i: usize) -> &Packet {
         if let Content::Subpackets(subpackets) = &self.content {
             &subpackets[i]
         } else {
-            panic!("No subpackets")
+            panic!("No subpackets");
+        }
+    }
+
+    fn sub_values(&self) -> impl Iterator<Item = u64> + '_ {
+        if let Content::Subpackets(subs) = &self.content {
+            subs.iter().map(|sub| sub.value())
+        } else {
+            panic!("No subpackets");
         }
     }
 
@@ -49,6 +56,60 @@ impl Packet {
                 Content::Literal(_) => 0,
                 Content::Subpackets(subs) => subs.iter().map(|p| p.sum_versions()).sum(),
             }
+    }
+
+    fn value(&self) -> u64 {
+        match self.type_id {
+            0 => self.sum(),
+            1 => self.product(),
+            2 => self.minimum(),
+            3 => self.maximum(),
+            4 => self.literal(),
+            5 => self.greater_than(),
+            6 => self.less_than(),
+            7 => self.equal_to(),
+            _ => panic!("Unexpected type ID: {}", self.type_id),
+        }
+    }
+
+    fn sum(&self) -> u64 {
+        self.sub_values().sum()
+    }
+
+    fn product(&self) -> u64 {
+        self.sub_values().product()
+    }
+
+    fn minimum(&self) -> u64 {
+        self.sub_values().min().unwrap()
+    }
+
+    fn maximum(&self) -> u64 {
+        self.sub_values().max().unwrap()
+    }
+
+    fn greater_than(&self) -> u64 {
+        if self.get_subpacket(0).value() > self.get_subpacket(1).value() {
+            1
+        } else {
+            0
+        }
+    }
+
+    fn less_than(&self) -> u64 {
+        if self.get_subpacket(0).value() < self.get_subpacket(1).value() {
+            1
+        } else {
+            0
+        }
+    }
+
+    fn equal_to(&self) -> u64 {
+        if self.get_subpacket(0).value() == self.get_subpacket(1).value() {
+            1
+        } else {
+            0
+        }
     }
 }
 
@@ -153,12 +214,12 @@ fn test() {
     let p = parse_packet(&mut parse_bits(test_input));
     assert_eq!(1, p.version);
     assert_eq!(6, p.type_id);
-    assert_eq!(6, p.subpacket(0).version);
-    assert_eq!(4, p.subpacket(0).type_id);
-    assert_eq!(10, p.subpacket(0).literal());
-    assert_eq!(2, p.subpacket(1).version);
-    assert_eq!(4, p.subpacket(1).type_id);
-    assert_eq!(20, p.subpacket(1).literal());
+    assert_eq!(6, p.get_subpacket(0).version);
+    assert_eq!(4, p.get_subpacket(0).type_id);
+    assert_eq!(10, p.get_subpacket(0).literal());
+    assert_eq!(2, p.get_subpacket(1).version);
+    assert_eq!(4, p.get_subpacket(1).type_id);
+    assert_eq!(20, p.get_subpacket(1).literal());
 
     let test_input = "EE00D40C823060";
     assert_eq!(
@@ -171,15 +232,15 @@ fn test() {
     let p = parse_packet(&mut parse_bits(test_input));
     assert_eq!(7, p.version);
     assert_eq!(3, p.type_id);
-    assert_eq!(2, p.subpacket(0).version);
-    assert_eq!(4, p.subpacket(0).type_id);
-    assert_eq!(1, p.subpacket(0).literal());
-    assert_eq!(4, p.subpacket(1).version);
-    assert_eq!(4, p.subpacket(1).type_id);
-    assert_eq!(2, p.subpacket(1).literal());
-    assert_eq!(1, p.subpacket(2).version);
-    assert_eq!(4, p.subpacket(2).type_id);
-    assert_eq!(3, p.subpacket(2).literal());
+    assert_eq!(2, p.get_subpacket(0).version);
+    assert_eq!(4, p.get_subpacket(0).type_id);
+    assert_eq!(1, p.get_subpacket(0).literal());
+    assert_eq!(4, p.get_subpacket(1).version);
+    assert_eq!(4, p.get_subpacket(1).type_id);
+    assert_eq!(2, p.get_subpacket(1).literal());
+    assert_eq!(1, p.get_subpacket(2).version);
+    assert_eq!(4, p.get_subpacket(2).type_id);
+    assert_eq!(3, p.get_subpacket(2).literal());
 
     assert_eq!(16, parse_input("8A004A801A8002F478").sum_versions());
     assert_eq!(12, parse_input("620080001611562C8802118E34").sum_versions());
@@ -191,4 +252,13 @@ fn test() {
         31,
         parse_input("A0016C880162017C3686B18A3D4780").sum_versions()
     );
+
+    assert_eq!(3, parse_input("C200B40A82").value());
+    assert_eq!(54, parse_input("04005AC33890").value());
+    assert_eq!(7, parse_input("880086C3E88112").value());
+    assert_eq!(9, parse_input("CE00C43D881120").value());
+    assert_eq!(1, parse_input("D8005AC2A8F0").value());
+    assert_eq!(0, parse_input("F600BC2D8F").value());
+    assert_eq!(0, parse_input("9C005AC2F8F0").value());
+    assert_eq!(1, parse_input("9C0141080250320F1802104A08").value());
 }
