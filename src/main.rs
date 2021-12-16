@@ -105,7 +105,7 @@ fn run(day: i32) {
                 }
             }
         }
-        Err(e) => eprintln!("{}: {}", filename, e),
+        Err(e) => println!("{}: {}", filename, e),
     }
 }
 
