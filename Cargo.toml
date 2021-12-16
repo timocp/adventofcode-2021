@@ -7,5 +7,4 @@ edition = "2021"
 
 [dependencies]
 lazy_static = "1.4.0"
-memoize = "0.1.9"
 regex = "1"
