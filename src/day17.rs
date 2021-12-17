@@ -3,12 +3,12 @@ use regex::Regex;
 use std::ops::Range;
 
 pub fn run(input: &str, part: Part) -> String {
-    let target = parse_input(input);
+    let result = search_shots(&parse_input(input));
     format!(
         "{}",
         match part {
-            Part::One => search_highest_shot(&target),
-            Part::Two => 0,
+            Part::One => result.0,
+            Part::Two => result.1,
         }
     )
 }
@@ -33,7 +33,7 @@ fn fire(dx: i64, dy: i64, target: &Target) -> Option<i64> {
     let mut x = 0;
     let mut y = 0;
     let mut max_y = y;
-    while x <= target.x.end && y >= target.y.end {
+    while x <= target.x.end && y >= target.y.start {
         x += dx;
         y += dy;
         if y > max_y {
@@ -54,7 +54,7 @@ fn fire(dx: i64, dy: i64, target: &Target) -> Option<i64> {
 // possible starting x velocities that could end up in the X target range
 fn x_candidates(target: &Target) -> Vec<i64> {
     let mut valid = vec![];
-    'outer: for cand in 1..target.x.end {
+    'outer: for cand in 0..target.x.end {
         let mut x = 0;
         let mut dx = cand;
         while x <= target.x.end && dx > 0 {
@@ -70,11 +70,10 @@ fn x_candidates(target: &Target) -> Vec<i64> {
 }
 
 // possible starting y velocities that could end up in the Y target range
-// assumes a positive starting Y value velocity (as we are after max height)
 fn y_candidates(target: &Target) -> Vec<i64> {
     let mut valid = vec![];
     // not sure how to limit starting dy here, just pick a big number
-    'outer: for cand in 1..500 {
+    'outer: for cand in target.y.start..500 {
         let mut y = 0;
         let mut dy = cand;
         while y > target.y.start {
@@ -89,14 +88,17 @@ fn y_candidates(target: &Target) -> Vec<i64> {
     valid
 }
 
-fn search_highest_shot(target: &Target) -> i64 {
+// return (highest_shot, count_of_hits)
+fn search_shots(target: &Target) -> (i64, i64) {
     let mut max_height = 0;
+    let mut count = 0;
 
     let x_candidates = x_candidates(target);
     let y_candidates = y_candidates(target);
     for &x in x_candidates.iter() {
         for &y in y_candidates.iter() {
             if let Some(height) = fire(x, y, target) {
+                count += 1;
                 if height > max_height {
                     max_height = height;
                 }
@@ -104,7 +106,7 @@ fn search_highest_shot(target: &Target) -> i64 {
         }
     }
 
-    max_height
+    (max_height, count)
 }
 
 fn parse_input(input: &str) -> Target {
@@ -126,7 +128,6 @@ fn parse_input(input: &str) -> Target {
 fn test() {
     let test_input = "target area: x=20..30, y=-10..-5\n";
     let target = parse_input(test_input);
-    println!("{:?}", target);
     assert_eq!(20..31, target.x);
     assert_eq!(-10..-4, target.y);
     assert!(target.contains(20, -10));
@@ -137,6 +138,7 @@ fn test() {
     assert_eq!(Some(6), fire(6, 3, &target));
     assert_eq!(Some(0), fire(9, 0, &target));
     assert_eq!(None, fire(17, -4, &target));
+    assert_eq!(Some(0), fire(10, -2, &target));
 
-    assert_eq!(45, search_highest_shot(&target));
+    assert_eq!((45, 112), search_shots(&target));
 }
