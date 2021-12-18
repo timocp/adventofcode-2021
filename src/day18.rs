@@ -8,13 +8,30 @@ pub fn run(input: &str, part: Part) -> String {
         "{}",
         match part {
             Part::One => part1(&sf_numbers),
-            Part::Two => 0,
+            Part::Two => part2(&sf_numbers),
         }
     )
 }
 
 fn part1(input: &[SfNumber]) -> u32 {
     add_sf_list(input).magnitude()
+}
+
+fn part2(input: &[SfNumber]) -> u32 {
+    let mut max = 0;
+
+    for (i, a) in input.iter().enumerate() {
+        for (j, b) in input.iter().enumerate() {
+            if i != j {
+                let mag = (a + b).magnitude();
+                if mag > max {
+                    max = mag;
+                }
+            }
+        }
+    }
+
+    max
 }
 
 fn parse_input(input: &str) -> Vec<SfNumber> {
@@ -386,4 +403,6 @@ fn test() {
 [[[[5,2],5],[8,[3,7]]],[[5,[7,5]],[4,4]]]
 ";
     assert_eq!(4140, part1(&parse_input(test_input)));
+
+    assert_eq!(3993, part2(&parse_input(test_input)));
 }
