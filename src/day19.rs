@@ -5,11 +5,12 @@ use std::fmt;
 
 pub fn run(input: &str, part: Part) -> String {
     let scans = parse_input(input);
+    let (beacons, scanners) = search(&scans);
     format!(
         "{}",
         match part {
-            Part::One => all_beacons(&scans).len(),
-            Part::Two => 0,
+            Part::One => beacons.len(),
+            Part::Two => max_distance(&scanners),
         }
     )
 }
@@ -59,6 +60,11 @@ impl Pos {
 
     fn offset(&self, by: Pos) -> Pos {
         Pos::new(self.x + by.x, self.y + by.y, self.z + by.z)
+    }
+
+    // manhattan distance between 2 positions
+    fn distance(&self, other: Pos) -> usize {
+        ((self.x - other.x).abs() + (self.y - other.y).abs() + (self.z - other.z).abs()) as usize
     }
 }
 
@@ -123,10 +129,12 @@ fn parse_input(input: &str) -> Vec<Scan> {
     input.split("\n\n").map(Scan::from).collect()
 }
 
-fn all_beacons(scans: &[Scan]) -> HashSet<Pos> {
+// returns (set of beacons, vec of scanner positions)
+fn search(scans: &[Scan]) -> (HashSet<Pos>, Vec<Pos>) {
     // everything will be relative to scan[0], so load its beacons into the
     // map straight away
     let mut beacons = HashSet::new();
+    let mut scanners: Vec<Pos> = scans.iter().map(|_| Pos::new(0, 0, 0)).collect();
     for beacon in &scans[0].beacons {
         beacons.insert(*beacon);
     }
@@ -148,13 +156,15 @@ fn all_beacons(scans: &[Scan]) -> HashSet<Pos> {
         //     beacons.len()
         // );
         for k in known.iter() {
-            if let Some(set) = match_scan(scan, k) {
-                // println!("MATCHED!");
+            if let Some((set, scanner_pos)) = match_scan(scan, k) {
+                // println!("MATCHED!  scanner {} is at {:?}", scan.number, scanner_pos);
                 matched = true;
                 // merge everything in this match into the set of known beacons
                 beacons.extend(&set);
                 // store this set for later comparisons
                 known.push(set);
+                // record the scanner's position for part 2
+                scanners[scan.number] = scanner_pos;
                 break;
             }
         }
@@ -164,14 +174,16 @@ fn all_beacons(scans: &[Scan]) -> HashSet<Pos> {
         }
     }
 
-    beacons
+    (beacons, scanners)
 }
 
 // assuming "other" is already correctly orientated
 // try out the 24 combinations of facings/rotations this scan could be in.
 // the first one with 12 matching beacons is a hit.  we return a list of
 // coords (correctly re-orientated so they can be compared to others).
-fn match_scan(scan: &Scan, set: &HashSet<Pos>) -> Option<HashSet<Pos>> {
+//
+// returns (set of orientated beacons, vec of matched scanner position)
+fn match_scan(scan: &Scan, set: &HashSet<Pos>) -> Option<(HashSet<Pos>, Pos)> {
     for rot in 0..24 {
         let beacons: Vec<Pos> = scan.beacons.iter().map(|p| p.rotate(rot)).collect();
         // now try to guess the offset.  any pos in 'beacons' might map to any pos in `set`
@@ -188,8 +200,9 @@ fn match_scan(scan: &Scan, set: &HashSet<Pos>) -> Option<HashSet<Pos>> {
                 for b in beacons.iter().map(|p| p.offset(offset)) {
                     if set.contains(&b) {
                         if count == 11 {
-                            return Some(HashSet::from_iter(
-                                beacons.iter().map(|p| p.offset(offset)),
+                            return Some((
+                                HashSet::from_iter(beacons.iter().map(|p| p.offset(offset))),
+                                offset,
                             ));
                         }
                         count += 1;
@@ -199,6 +212,21 @@ fn match_scan(scan: &Scan, set: &HashSet<Pos>) -> Option<HashSet<Pos>> {
         }
     }
     None
+}
+
+fn max_distance(scanners: &[Pos]) -> usize {
+    let mut max = 0;
+
+    for (i, p1) in scanners.iter().enumerate() {
+        for p2 in scanners.iter().skip(i + 1) {
+            let dist = p1.distance(*p2);
+            if dist > max {
+                max = dist;
+            }
+        }
+    }
+
+    max
 }
 
 #[test]
@@ -342,6 +370,7 @@ fn test() {
 30,-46,-14
 ";
     let scans = parse_input(test_input);
-    let beacons = all_beacons(&scans);
+    let (beacons, scanners) = search(&scans);
     assert_eq!(79, beacons.len());
+    assert_eq!(3621, max_distance(&scanners));
 }
