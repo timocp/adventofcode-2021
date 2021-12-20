@@ -4,18 +4,30 @@ use std::fmt;
 use std::ops::Range;
 
 pub fn run(input: &str, part: Part) -> String {
-    let (alg, mut image) = parse_input(input);
+    let (alg, image) = parse_input(input);
     format!(
         "{}",
-        match part {
-            Part::One => {
-                image = image.enhance(&alg);
-                image = image.enhance(&alg);
-                image.grid.len()
+        enhance(
+            &image,
+            &alg,
+            match part {
+                Part::One => 2,
+                Part::Two => 50,
             }
-            Part::Two => 0,
-        }
+        )
+        .grid
+        .len()
     )
+}
+
+fn enhance(image: &Image, alg: &[bool], count: usize) -> Image {
+    let mut img = image.enhance(alg);
+
+    for _ in 1..count {
+        img = img.enhance(alg)
+    }
+
+    img
 }
 
 struct Image {
@@ -143,9 +155,9 @@ fn test() {
 ";
 
     let (alg, image) = parse_input(test_input);
+    assert_eq!(512, alg.len());
     assert_eq!(10, image.grid.len());
-    let image = image.enhance(&alg);
-    assert_eq!(24, image.grid.len());
-    let image = image.enhance(&alg);
-    assert_eq!(35, image.grid.len());
+    assert_eq!(24, enhance(&image, &alg, 1).grid.len());
+    assert_eq!(35, enhance(&image, &alg, 2).grid.len());
+    assert_eq!(3351, enhance(&image, &alg, 50).grid.len());
 }
