@@ -140,6 +140,25 @@ fn parse_input(input: &str) -> Vec<Scan> {
     input.split("\n\n").map(Scan::from).collect()
 }
 
+// for storing pre-rotated sets of beacons
+struct RotatedBeacons {
+    scan_number: usize,
+    rotation: i32,
+    beacons: Vec<Pos>,
+}
+
+impl fmt::Debug for RotatedBeacons {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "scanner {} with rotation {} ({} beacons)",
+            self.scan_number,
+            self.rotation,
+            self.beacons.len()
+        )
+    }
+}
+
 // returns (set of beacons, vec of scanner positions)
 fn search(scans: &[Scan]) -> (HashSet<Pos>, Vec<Pos>) {
     // everything will be relative to scan[0], so load its beacons into the
@@ -150,74 +169,85 @@ fn search(scans: &[Scan]) -> (HashSet<Pos>, Vec<Pos>) {
         beacons.insert(*beacon);
     }
 
-    // queue of scans which we haven't placed yet
-    let mut queue: VecDeque<&Scan> = scans.iter().skip(1).collect();
+    // queue of (scan_number, rot, rotated_beacons) for each scan/rotation pair
+    let mut queue: VecDeque<RotatedBeacons> = VecDeque::new();
+    for scan in scans.iter().skip(1) {
+        for rot in 0..24 {
+            queue.push_back(RotatedBeacons {
+                scan_number: scan.number,
+                rotation: rot,
+                beacons: scan.beacons.iter().map(|p| p.rotate(rot)).collect(),
+            });
+        }
+    }
 
     // queue of known sets of points (re-orientated)
     let mut known: Vec<HashSet<Pos>> =
         vec![HashSet::from_iter(scans[0].beacons.clone().into_iter())];
 
-    while let Some(scan) = queue.pop_front() {
+    while let Some(rotated_beacons) = queue.pop_front() {
         let mut matched = false;
         // println!(
-        //     "Trying to match scan {} ({} unknown sets, {} known sets, {} known beacons)",
-        //     scan,
+        //     "Trying to match {:?}, {} unknown sets, {} known sets, {} known beacons",
+        //     rotated_beacons,
         //     queue.len() + 1,
         //     known.len(),
         //     beacons.len()
         // );
         for k in known.iter() {
-            if let Some((set, scanner_pos)) = match_scan(scan, k) {
-                // println!("MATCHED!  scanner {} is at {:?}", scan.number, scanner_pos);
+            if let Some(scanner_pos) = match_beacons(&rotated_beacons, k) {
+                // println!("MATCHED!  {:?} is at {:?}", rotated_beacons, scanner_pos);
                 matched = true;
                 // merge everything in this match into the set of known beacons
+                let set: HashSet<Pos> = HashSet::from_iter(
+                    rotated_beacons
+                        .beacons
+                        .iter()
+                        .map(|p| p.offset(scanner_pos)),
+                );
                 beacons.extend(&set);
                 // store this set for later comparisons
                 known.push(set);
                 // record the scanner's position for part 2
-                scanners[scan.number] = scanner_pos;
+                scanners[rotated_beacons.scan_number] = scanner_pos;
+                // remove other rotations of this scan from the queue
+                queue.retain(|rb| rb.scan_number != rotated_beacons.scan_number);
                 break;
             }
         }
         if !matched {
             // try this one later
-            queue.push_back(scan);
+            queue.push_back(rotated_beacons);
         }
     }
 
     (beacons, scanners)
 }
 
-// assuming "other" is already correctly orientated
-// try out the 24 combinations of facings/rotations this scan could be in.
-// the first one with 12 matching beacons is a hit.  we return a list of
-// coords (correctly re-orientated so they can be compared to others).
+// assuming "other" is already correctly orientated list of beacons.
+// for a given (pre-rotated) set of beacons, try shifting each beacon
+// to the target beacons in turn to see if an offset matches enough known beacons
+// to be considered the correct rotation/offset.
 //
-// returns (set of orientated beacons, vec of matched scanner position)
-fn match_scan(scan: &Scan, set: &HashSet<Pos>) -> Option<(HashSet<Pos>, Pos)> {
-    for rot in 0..24 {
-        let beacons: Vec<Pos> = scan.beacons.iter().map(|p| p.rotate(rot)).collect();
-        // now try to guess the offset.  any pos in 'beacons' might map to any pos in `set`
-        // but if it's not found by the time only 11 are left to check, this rotation will
-        // not match.
-        for i in 0..beacons.len() - 11 {
-            for known in set.iter() {
-                let offset = Pos::new(
-                    known.x - beacons[i].x,
-                    known.y - beacons[i].y,
-                    known.z - beacons[i].z,
-                );
-                let mut count = 0;
-                for b in beacons.iter().map(|p| p.offset(offset)) {
-                    if set.contains(&b) {
-                        if count == 11 {
-                            return Some((
-                                HashSet::from_iter(beacons.iter().map(|p| p.offset(offset))),
-                                offset,
-                            ));
-                        }
-                        count += 1;
+// if found, returns the deduced scanner position.  otherwise returns None.
+fn match_beacons(rb: &RotatedBeacons, set: &HashSet<Pos>) -> Option<Pos> {
+    // now try to guess the offset.  any pos in 'beacons' might map to any pos in `set`
+    // but if it's not found by the time only 11 are left to check, this rotation will
+    // not match.
+    for i in 0..rb.beacons.len() - 11 {
+        for known in set.iter() {
+            let offset = Pos::new(
+                known.x - rb.beacons[i].x,
+                known.y - rb.beacons[i].y,
+                known.z - rb.beacons[i].z,
+            );
+            let mut count = 0;
+            for b in rb.beacons.iter().map(|p| p.offset(offset)) {
+                if set.contains(&b) {
+                    if count == 11 {
+                        return Some(offset);
                     }
+                    count += 1;
                 }
             }
         }
