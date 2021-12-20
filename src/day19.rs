@@ -1,18 +1,29 @@
 use crate::Part;
+use std::cell::RefCell;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::fmt;
 
+thread_local!(static RESULT: RefCell<Option<(HashSet<Pos>, Vec<Pos>)>> = RefCell::new(None));
+
 pub fn run(input: &str, part: Part) -> String {
-    let scans = parse_input(input);
-    let (beacons, scanners) = search(&scans);
-    format!(
-        "{}",
-        match part {
-            Part::One => beacons.len(),
-            Part::Two => max_distance(&scanners),
+    RESULT.with(|result| {
+        if result.borrow().is_none() {
+            let scans = parse_input(input);
+            *result.borrow_mut() = Some(search(&scans));
         }
-    )
+        if let Some(result) = &*result.borrow() {
+            format!(
+                "{}",
+                match part {
+                    Part::One => result.0.len(),
+                    Part::Two => max_distance(&result.1),
+                }
+            )
+        } else {
+            panic!();
+        }
+    })
 }
 
 #[derive(Clone, Copy, Eq, Hash, PartialEq)]
