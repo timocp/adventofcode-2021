@@ -1,4 +1,5 @@
 use crate::Part;
+use std::collections::HashMap;
 use std::iter::Cycle;
 use std::ops::RangeInclusive;
 
@@ -8,7 +9,7 @@ pub fn run(input: &str, part: Part) -> String {
         "{}",
         match part {
             Part::One => game.part1(),
-            Part::Two => 0,
+            Part::Two => game.part2(),
         }
     )
 }
@@ -19,6 +20,12 @@ struct Game {
     score: [usize; 2],
     turn: usize,
     dice: Cycle<RangeInclusive<usize>>,
+}
+
+#[derive(Debug, Eq, Hash, PartialEq)]
+struct State {
+    pos: [usize; 2],
+    score: [usize; 2],
 }
 
 impl Game {
@@ -55,6 +62,58 @@ impl Game {
     fn part1(&mut self) -> usize {
         self.play_until_end();
         self.score[self.winner().unwrap() + 1 % 2] * self.rolls()
+    }
+
+    fn part2(&self) -> usize {
+        let mut seen: HashMap<State, (usize, usize)> = HashMap::new();
+
+        let (p0_wins, p1_wins) = self.count_wins(
+            State {
+                pos: self.pos,
+                score: self.score,
+            },
+            &mut seen,
+        );
+
+        if p0_wins > p1_wins {
+            p0_wins
+        } else {
+            p1_wins
+        }
+    }
+
+    fn count_wins(
+        &self,
+        state: State,
+        seen: &mut HashMap<State, (usize, usize)>,
+    ) -> (usize, usize) {
+        if state.score[1] >= 21 {
+            return (0, 1);
+        }
+
+        if let Some(&wins) = seen.get(&state) {
+            return wins;
+        }
+
+        let mut counts = (0, 0);
+        for d1 in 1..=3 {
+            for d2 in 1..=3 {
+                for d3 in 1..=3 {
+                    let next_pos = (state.pos[0] + d1 + d2 + d3 - 1) % 10 + 1;
+                    let next_state = State {
+                        pos: [state.pos[1], next_pos],
+                        score: [state.score[1], state.score[0] + next_pos],
+                    };
+                    let next_score = self.count_wins(next_state, seen);
+                    counts.0 += next_score.1;
+                    counts.1 += next_score.0;
+                }
+            }
+        }
+
+        seen.insert(state, counts);
+
+        counts
     }
 }
 
@@ -109,4 +168,7 @@ Player 2 starting position: 8
 
     let mut game = Game::from(test_input);
     assert_eq!(739785, game.part1());
+
+    let game = Game::from(test_input);
+    assert_eq!(444356092776315, game.part2());
 }
