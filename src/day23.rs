@@ -5,14 +5,18 @@ use std::collections::HashMap;
 use std::fmt;
 
 pub fn run(input: &str, part: Part) -> String {
-    let (map, state) = parse_input(input);
     format!(
         "{}",
         match part {
-            Part::One => state.cheapest_path(&map),
-            Part::Two => 0,
+            Part::One => solve(input),
+            Part::Two => solve(&unfold_input(input)),
         }
     )
+}
+
+fn solve(input: &str) -> usize {
+    let (map, state) = parse_input(input);
+    state.cheapest_path(&map)
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -225,7 +229,7 @@ impl State {
     }
 
     fn dest_room_y(&self, x: usize) -> Option<usize> {
-        let mut target_y = 3;
+        let mut target_y = self.pods.len() / 4 + 1;
         for pod in self.pods.iter() {
             if pod.x() == x {
                 if pod.target_col() != x {
@@ -256,13 +260,17 @@ impl State {
                     }
                 });
             }
-            if rn < 4 {
+            if rn < self.pods.len() / 4 {
                 s += &format!(
-                    "\t[{}] {:?}  [{}] {:?}",
-                    rn,
-                    self.pods[rn],
-                    rn + 4,
-                    self.pods[rn + 4]
+                    "\t{}/{:?}  {}/{:?}  {}/{:?}  {}/{:?}",
+                    rn * 4,
+                    self.pods[rn * 4],
+                    rn * 4 + 1,
+                    self.pods[rn * 4 + 1],
+                    rn * 4 + 2,
+                    self.pods[rn * 4 + 2],
+                    rn * 4 + 3,
+                    self.pods[rn * 4 + 3],
                 );
             }
             s.push('\n');
@@ -319,6 +327,19 @@ fn parse_input(input: &str) -> (Map, State) {
     (Map { grid }, State { pods })
 }
 
+fn unfold_input(input: &str) -> String {
+    let mut s = String::new();
+    for (i, line) in input.lines().enumerate() {
+        s.push_str(line);
+        s.push('\n');
+        if i == 2 {
+            s.push_str("  #D#C#B#A#\n");
+            s.push_str("  #D#B#A#C#\n");
+        }
+    }
+    s
+}
+
 #[test]
 fn test() {
     let test_input = "\
@@ -331,5 +352,8 @@ fn test() {
     let (map, state) = parse_input(test_input);
     println!("{}", state.print(&map));
     assert_eq!(12521, state.cheapest_path(&map));
-    // assert_eq!()
+
+    let (map, state) = parse_input(&unfold_input(test_input));
+    println!("{}", state.print(&map));
+    assert_eq!(44169, state.cheapest_path(&map));
 }
