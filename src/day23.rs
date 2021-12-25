@@ -1,5 +1,4 @@
 use crate::Part;
-use std::cmp::Ordering;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -17,21 +16,16 @@ pub fn run(input: &str, part: Part) -> String {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-enum PodState {
-    StartRoomTop,
-    StartRoomBottom,
-    EnteredHallway, // is moving and in hallway
-    StoppedHallway, // has found a place to stop in the hallway
-    LeavingHallway, // is moving again (and must leave hallway now)
-    DestRoomTop,    // has arrived in destination room
-    DestRoomBottom, // in final place
+enum Pos {
+    StartRoom(usize, usize), // row, x
+    Hallway(usize),          // x
+    DestRoom(usize),         // row
 }
 
 #[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct Pod {
     colour: char,
-    pos: (usize, usize),
-    state: PodState,
+    pos: Pos,
 }
 
 impl Pod {
@@ -45,21 +39,31 @@ impl Pod {
         }
     }
 
-    fn in_target_col(&self) -> bool {
-        self.pos.1 == self.target_col()
+    fn in_dest_room(&self) -> bool {
+        matches!(self.pos, Pos::DestRoom(_))
+    }
+
+    // returns (row, col)
+    fn pos(&self) -> (usize, usize) {
+        match self.pos {
+            Pos::StartRoom(depth, x) => (depth, x),
+            Pos::Hallway(x) => (1, x),
+            Pos::DestRoom(depth) => (depth, self.target_col()),
+        }
+    }
+
+    fn x(&self) -> usize {
+        self.pos().1
+    }
+
+    fn y(&self) -> usize {
+        self.pos().0
     }
 }
 
 impl fmt::Debug for Pod {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{:30}",
-            format!(
-                "{} at {:2},{:2} is {:?}",
-                self.colour, self.pos.0, self.pos.1, self.state
-            )
-        )
+        write!(f, "{} at {:?}", self.colour, self.pos)
     }
 }
 
@@ -85,192 +89,82 @@ impl State {
         // println!("Looking for next states from:\n{}", self.print(map));
         let mut to = vec![];
 
-        // if anything is moving in the hallway for the first time, noone else is allowed to move
-        if let Some(i) = self
-            .pods
-            .iter()
-            .position(|p| p.state == PodState::EnteredHallway)
-        {
-            let pod = self.pods[i];
-            let cost = self.cost(pod.colour);
-            for dx in [-1, 1] {
-                let x = if dx == -1 {
-                    self.pods[i].pos.1 - 1
-                } else {
-                    self.pods[i].pos.1 + 1
-                };
-                if x < 1 || x > 11 {
-                    // at end of hallway, no moves allowed
-                } else if let None = self.at((pod.pos.0, x)) {
-                    if x == 3 || x == 5 || x == 7 || x == 9 {
-                        // may move there but may not stop moving
-                        // println!("[{}] {:?} may move {} and must keep moving", i, pod, dx);
-                        let mut new = self.clone();
-                        new.pods[i].pos = (pod.pos.0, x);
-                        to.push((new, cost));
-                    } else {
-                        // may move there and stop or keep going
-                        // println!("[{}] {:?} may move {} and keep moving or stop", i, pod, dx);
-                        let mut new = self.clone();
-                        new.pods[i].pos = (pod.pos.0, x);
-                        to.push((new, cost));
-                        let mut new = self.clone();
-                        new.pods[i].pos = (pod.pos.0, x);
-                        new.pods[i].state = PodState::StoppedHallway;
-                        to.push((new, cost));
-                    }
-                }
-            }
-            // this pod must stop before other moves
-            return to;
-        }
-
-        // if anything is moving out of the hallway, noone else is allowed to move
-        if let Some(i) = self
-            .pods
-            .iter()
-            .position(|p| p.state == PodState::LeavingHallway)
-        {
-            // this pod must enter destination room before other moves
-            let pod = self.pods[i];
-            let cost = self.cost(pod.colour);
-            assert_eq!(pod.pos.1, pod.target_col());
-            if let None = self.at((pod.pos.0 + 1, pod.pos.1)) {
-                // println!("[{}] {:?} can enter destination room", i, pod);
-                let mut new = self.clone();
-                new.pods[i].pos = (pod.pos.0 + 1, pod.pos.1);
-                new.pods[i].state = PodState::DestRoomTop;
-                to.push((new, cost));
-            }
-            // this pod must stop before other moves
-            return to;
-        }
-
-        // otherwise, basically anything is allowed
         for (i, pod) in self.pods.iter().enumerate() {
             let cost = self.cost(pod.colour);
-            match pod.state {
-                PodState::StartRoomTop => {
-                    if pod.in_target_col() {
-                        if let Some(p2) = self.at((pod.pos.0 + 1, pod.pos.1)) {
-                            if self.pods[p2].colour != pod.colour {
-                                // println!("[{}] {:?} in target room already but has to move into hallway to get out of the way", i, pod);
-                                let mut new = self.clone();
-                                new.pods[i].pos = (pod.pos.0 - 1, pod.pos.1);
-                                new.pods[i].state = PodState::EnteredHallway;
-                                to.push((new, cost));
-                            }
-                        } else {
+            match pod.pos {
+                Pos::StartRoom(y, x) => {
+                    // free to move?
+                    if self.free_to_move_into_hallway(i) {
+                        // println!("{}/{:?} is free to move into hallway", i, pod);
+                        if self.hallway_clear(x, pod.target_col())
+                            && self.dest_room_y(pod.target_col()).is_some()
+                        {
+                            // pod can move directly into its destination room
+                            let nx = pod.target_col();
+                            let ny = self.dest_room_y(pod.target_col()).unwrap();
                             // println!(
-                            //     "[{}] {:?} in target room already and can move south",
-                            //     i, pod
+                            //     "{}/{:?} can move directly into dest room {},{} ",
+                            //     i, pod, ny, nx
                             // );
-                            let mut new = self.clone();
-                            new.pods[i].pos = (pod.pos.0 + 1, pod.pos.1);
-                            new.pods[i].state = PodState::DestRoomBottom;
-                            to.push((new, cost));
-                        }
-                    } else {
-                        // assumed safe since noone is allowed to stop outside a room
-                        // println!("[{}] {:?} can move north", i, pod);
-                        let mut new = self.clone();
-                        new.pods[i].pos = (pod.pos.0 - 1, pod.pos.1);
-                        new.pods[i].state = PodState::EnteredHallway;
-                        to.push((new, cost));
-                    }
-                }
-                PodState::StartRoomBottom => {
-                    if pod.in_target_col() {
-                        // println!(
-                        //     "[{}] {:?} in target room already and doesn't need to move",
-                        //     i, pod
-                        // );
-                    } else {
-                        if let None = self.at((pod.pos.0 - 1, pod.pos.1)) {
-                            // println!("[{}] {:?} can move north", i, pod);
-                            let mut new = self.clone();
-                            new.pods[i].pos = (pod.pos.0 - 1, pod.pos.1);
-                            new.pods[i].state = PodState::StartRoomTop;
-                            to.push((new, cost));
+                            to.push((
+                                self.clone_with_move(i, Pos::DestRoom(ny)),
+                                cost * (y - 1 + (x.max(nx) - x.min(nx)) + ny - 1),
+                            ));
                         } else {
-                            // println!("[{}] {:?} is blocked from moving north", i, pod);
+                            // out and left and stop
+                            let mut nx = x - 1;
+                            while self.is_empty(map, 1, nx) {
+                                if nx != 3 && nx != 5 && nx != 7 && nx != 9 {
+                                    // println!("{}/{:?} can move left into hallway({})", i, pod, nx);
+                                    to.push((
+                                        self.clone_with_move(i, Pos::Hallway(nx)),
+                                        cost * (y - 1 + (x - nx)),
+                                    ));
+                                }
+                                nx -= 1;
+                            }
+
+                            // out and right and stop
+                            let mut nx = x + 1;
+                            while self.is_empty(map, 1, nx) {
+                                if nx != 3 && nx != 5 && nx != 7 && nx != 9 {
+                                    // println!("{}/{:?} can move right into hallway({})", i, pod, nx);
+                                    to.push((
+                                        self.clone_with_move(i, Pos::Hallway(nx)),
+                                        cost * (y - 1 + (nx - x)),
+                                    ));
+                                }
+                                nx += 1;
+                            }
                         }
                     }
                 }
-                PodState::StoppedHallway => {
-                    // if i start moving now, it's to leave so it has to be towards the correct
-                    // column AND the path must be clear
-                    let mut clear = true;
-                    let steps;
-                    if pod.pos.1 > pod.target_col() {
-                        steps = pod.pos.1 - pod.target_col();
-                        for x in pod.target_col()..pod.pos.1 {
-                            if let Some(_) = self.at((pod.pos.0, x)) {
-                                clear = false;
-                                break;
-                            }
-                        }
-                    } else {
-                        steps = pod.target_col() - pod.pos.1;
-                        for x in (pod.pos.1 + 1)..=pod.target_col() {
-                            if let Some(_) = self.at((pod.pos.0, x)) {
-                                clear = false;
-                                break;
-                            }
-                        }
-                    }
-                    // check target column does not contain a different colour
-                    for dy in [1, 2] {
-                        if let Some(p2) = self.at((pod.pos.0 + dy, pod.target_col())) {
-                            if self.pods[p2].colour != pod.colour {
-                                clear = false;
-                            }
-                        }
-                    }
-                    if clear {
-                        // println!("[{}] {:?} can move to its target column", i, pod);
-                        let mut new = self.clone();
-                        new.pods[i].pos = (pod.pos.0, pod.target_col());
-                        new.pods[i].state = PodState::LeavingHallway;
-                        to.push((new, cost * steps));
-                    }
-                }
-                PodState::DestRoomTop => {
-                    // pod has finished moving and is in the target room.  only move allowed is
-                    // further in if it is empty
-                    if let None = self.at((pod.pos.0 + 1, pod.pos.1)) {
+                Pos::Hallway(x) => {
+                    let nx = pod.target_col();
+                    if ((nx > x && self.hallway_clear(x + 1, nx))
+                        || (nx < x && self.hallway_clear(nx, x - 1)))
+                        && self.dest_room_y(nx).is_some()
+                    {
+                        let ny = self.dest_room_y(nx).unwrap();
                         // println!(
-                        //     "[{}] {:?} can move to the bottom of destination room",
-                        //     i, pod
+                        //     "{}/{:?} can move from hallway into dest room {}, {}",
+                        //     i, pod, ny, nx
                         // );
-                        let mut new = self.clone();
-                        new.pods[i].pos = (pod.pos.0 + 1, pod.pos.1);
-                        new.pods[i].state = PodState::DestRoomBottom;
-                        to.push((new, cost));
+                        to.push((
+                            self.clone_with_move(i, Pos::DestRoom(ny)),
+                            cost * (x.max(nx) - x.min(nx) + ny - 1),
+                        ));
                     }
                 }
-                PodState::DestRoomBottom => {} // nothing to do
-                _ => panic!("unhandled {:?}", pod.state),
+                Pos::DestRoom(_) => (),
             }
         }
 
         to
     }
 
-    // index of pod at particular location (None if empty)
-    // SLOW, consider replacing positions with a HashMap of (y,x) => Pod
-    fn at(&self, pos: (usize, usize)) -> Option<usize> {
-        self.pods.iter().position(|pod| pod.pos == pos)
-    }
-
     fn goal_reached(&self) -> bool {
-        self.pods.iter().all(|p| match p.colour {
-            'A' => p.pos == (2, 3) || p.pos == (3, 3),
-            'B' => p.pos == (2, 5) || p.pos == (3, 5),
-            'C' => p.pos == (2, 7) || p.pos == (3, 7),
-            'D' => p.pos == (2, 9) || p.pos == (3, 9),
-            _ => unreachable!(),
-        })
+        self.pods.iter().all(|p| p.in_dest_room())
     }
 
     fn cheapest_path(&self, map: &Map) -> usize {
@@ -304,6 +198,49 @@ impl State {
         panic!("no path found!");
     }
 
+    fn clone_with_move(&self, p: usize, new_pos: Pos) -> Self {
+        let mut new = self.clone();
+        new.pods[p].pos = new_pos;
+        new
+    }
+
+    fn free_to_move_into_hallway(&self, i: usize) -> bool {
+        let pod = self.pods[i];
+        !self
+            .pods
+            .iter()
+            .any(|p| p.x() == pod.x() && p.y() < pod.y())
+    }
+
+    fn is_empty(&self, map: &Map, y: usize, x: usize) -> bool {
+        map.grid[y][x] == Cell::Space && !self.pods.iter().any(|p| p.y() == y && p.x() == x)
+    }
+
+    fn hallway_clear(&self, x0: usize, x1: usize) -> bool {
+        let range = x0.min(x1)..=x0.max(x1);
+        !self
+            .pods
+            .iter()
+            .any(|p| p.y() == 1 && range.contains(&p.x()))
+    }
+
+    fn dest_room_y(&self, x: usize) -> Option<usize> {
+        let mut target_y = 3;
+        for pod in self.pods.iter() {
+            if pod.x() == x {
+                if pod.target_col() != x {
+                    // can't enter dest room, different colour is present
+                    return None;
+                }
+                if pod.y() <= target_y {
+                    target_y = pod.y() - 1;
+                }
+            }
+        }
+        Some(target_y)
+    }
+
+    #[allow(dead_code)]
     fn print(&self, map: &Map) -> String {
         let mut s = String::new();
         for (rn, row) in map.grid.iter().enumerate() {
@@ -311,7 +248,7 @@ impl State {
                 s.push(match cell {
                     Cell::Wall => '#',
                     Cell::Space => {
-                        if let Some(p) = self.pods.iter().position(|p| p.pos == (rn, cn)) {
+                        if let Some(p) = self.pods.iter().position(|p| p.pos() == (rn, cn)) {
                             self.pods[p].colour
                         } else {
                             '.'
@@ -334,6 +271,7 @@ impl State {
     }
 }
 
+#[derive(Eq, PartialEq)]
 enum Cell {
     Wall,
     Space,
@@ -341,43 +279,44 @@ enum Cell {
 
 struct Map {
     grid: Vec<Vec<Cell>>,
-    width: usize,
-    height: usize,
 }
 
 fn parse_input(input: &str) -> (Map, State) {
-    let mut map = Map {
-        grid: vec![],
-        width: 0,
-        height: 0,
-    };
+    let mut grid = vec![];
     let mut pods = vec![];
 
-    for line in input.lines() {
-        map.grid.push(vec![]);
+    for (y, line) in input.lines().enumerate() {
+        grid.push(vec![]);
         for c in line.chars() {
             match c {
-                '#' | ' ' => map.grid[map.height].push(Cell::Wall),
-                '.' => map.grid[map.height].push(Cell::Space),
+                '#' | ' ' => grid[y].push(Cell::Wall),
+                '.' => grid[y].push(Cell::Space),
                 'A'..='D' => {
                     pods.push(Pod {
                         colour: c,
-                        state: if map.height == 2 {
-                            PodState::StartRoomTop
-                        } else {
-                            PodState::StartRoomBottom
-                        },
-                        pos: (map.height, map.grid[map.height].len()),
+                        pos: Pos::StartRoom(y, grid[y].len()),
                     });
-                    map.grid[map.height].push(Cell::Space);
+                    grid[y].push(Cell::Space);
                 }
                 _ => panic!("unexpected: {}", c),
             }
         }
-        map.height += 1;
     }
 
-    (map, State { pods })
+    for i in 0..pods.len() {
+        let pod = pods[i];
+        if pod.x() == pod.target_col() {
+            // if there's nothing below us of a different colour, no need to move
+            if !pods
+                .iter()
+                .any(|p| p.y() > pod.y() && p.x() == pod.x() && p.colour != pod.colour)
+            {
+                pods[i].pos = Pos::DestRoom(pod.y());
+            }
+        }
+    }
+
+    (Map { grid }, State { pods })
 }
 
 #[test]
