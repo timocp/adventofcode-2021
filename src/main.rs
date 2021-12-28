@@ -63,9 +63,11 @@ fn main() {
             run(day);
         }
         println!(
-            "{:>73} {1:.3}s",
-            "TOTAL:",
-            Instant::now().duration_since(t0).as_secs_f64()
+            "{:>80}",
+            format!(
+                "TOTAL: {:.3}s",
+                Instant::now().duration_since(t0).as_secs_f64()
+            )
         );
     }
 }
