@@ -7,8 +7,8 @@ pub fn run(input: &str, part: Part) -> String {
     format!(
         "{}",
         match part {
-            Part::One => part1(&program),
-            Part::Two => 0,
+            Part::One => solve(&program, false),
+            Part::Two => solve(&program, true),
         }
     )
 }
@@ -18,13 +18,8 @@ fn search_digit(
     d: usize,
     start_z: i64,
     cache: &mut HashMap<(usize, i64), Option<i64>>,
+    smallest: bool,
 ) -> Option<i64> {
-    // println!(
-    //     "Searching for {}th digit, start_z={}, {} known states",
-    //     d,
-    //     start_z,
-    //     cache.len()
-    // );
     if let Some(value) = cache.get(&(d, start_z)) {
         return *value;
     }
@@ -35,21 +30,23 @@ fn search_digit(
     }
 
     let mut alu = ALU::new();
-    let mut input: [i64; 1] = [9];
-    while input[0] > 0 {
+    let mut input: [i64; 1] = [if smallest { 1 } else { 9 }];
+    while input[0] > 0 && input[0] < 10 {
         let z = alu.run(&programs[d], start_z, &input);
         if d == 13 {
             // last digit
             if z == 0 {
                 return Some(input[0]);
             }
-        } else {
-            if let Some(value) = search_digit(programs, d + 1, z, cache) {
-                cache.insert((d, start_z), Some(value * 10 + input[0]));
-                return Some(value * 10 + input[0]);
-            }
+        } else if let Some(value) = search_digit(programs, d + 1, z, cache, smallest) {
+            cache.insert((d, start_z), Some(value * 10 + input[0]));
+            return Some(value * 10 + input[0]);
         }
-        input[0] -= 1;
+        if smallest {
+            input[0] += 1;
+        } else {
+            input[0] -= 1;
+        }
     }
 
     cache.insert((d, start_z), None);
@@ -66,7 +63,7 @@ fn reverse_digits(n: i64) -> i64 {
     rev
 }
 
-fn part1(program: &[Inst]) -> i64 {
+fn solve(program: &[Inst], smallest: bool) -> i64 {
     let mut cache: HashMap<(usize, i64), Option<i64>> = HashMap::new();
 
     // split the program up into subprograms, each starts with an "imp w"
@@ -80,9 +77,10 @@ fn part1(program: &[Inst]) -> i64 {
         programs[p].push(inst.clone());
     }
 
-    reverse_digits(search_digit(&programs, 0, 0, &mut cache).unwrap())
+    reverse_digits(search_digit(&programs, 0, 0, &mut cache, smallest).unwrap())
 }
 
+#[allow(clippy::upper_case_acronyms)]
 struct ALU {
     var: [i64; 4],
 }
@@ -251,7 +249,7 @@ impl From<&str> for Inst {
 }
 
 fn parse_input(input: &str) -> Vec<Inst> {
-    input.lines().map(|line| Inst::from(line)).collect()
+    input.lines().map(Inst::from).collect()
 }
 
 #[test]
